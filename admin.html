@@ -1066,6 +1066,19 @@ function formatFee(amount) {
   return amount.toLocaleString('hu-HU') + ' Ft';
 }
 
+// FEE CALCULATION
+function calcFee(child, month) {
+  const monthIdx = months.indexOf(month);
+  if (monthIdx <= 0) return child.monthlyFee || 0;
+  const prevMonth = months[monthIdx - 1];
+  const prevAttendance = child.attendance[prevMonth] || [];
+  const prevPresent = prevAttendance.filter(Boolean).length;
+  const fee = child.monthlyFee || 0;
+  if (prevPresent === 0) return 0;
+  if (prevPresent === 1) return Math.round(fee / 2);
+  return fee;
+}
+
 // GÁLA JEGYEK
 // Demo foglalások - Google Sheets összekötés után automatikus
 let galaBookings = [
