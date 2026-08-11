@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Basic Táncstúdió</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green:      #3D7A68;
+  --green-bg:   #EAF2EF;
+  --green-mid:  #6AA898;
+  --green-dark: #2A5E50;
+  --green-deep: #1E4A3E;
+  --cream:      #F5F0E8;
+  --ivory:      #FAF8F5;
+  --ivory2:     #F2EDE7;
+  --charcoal:   #1E1C1A;
+  --text-mid:   #4A4540;
+  --text-soft:  #8A837C;
+  --border:     #DDD6CE;
+  --border-lt:  #EDE7E1;
+  --shadow-sm:  0 2px 12px rgba(30,28,26,0.06);
+  --shadow-md:  0 8px 32px rgba(30,28,26,0.12);
+  --shadow-lg:  0 20px 60px rgba(30,28,26,0.14);
+  --red:        #C0392B;
+  --red-bg:     #FDECEA;
+  --orange:     #E67E22;
+}
+html, body { height: 100%; }
+body { font-family: 'Inter', sans-serif; background: var(--ivory); color: var(--charcoal); font-size: 15px; }
+
+/* HEADER */
+.header { background: var(--green-deep); padding: 0 2rem; height: 64px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow-md); position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+.header-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.header-logo { width: 34px; height: 34px; border-radius: 50%; object-fit: contain; background: white; padding: 4px; }
+.header-name { font-family: 'Cormorant Garamond', serif; font-size: 1rem; color: white; letter-spacing: 0.08em; text-transform: uppercase; }
+.header-right { display: flex; align-items: center; gap: 1rem; }
+.header-badge { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green-mid); background: rgba(106,168,152,0.15); padding: 4px 10px; border: 1px solid rgba(106,168,152,0.3); }
+.header-logout { font-size: 11px; color: rgba(255,255,255,0.4); background: none; border: none; cursor: pointer; font-family: 'Inter', sans-serif; letter-spacing: 0.06em; display: none; }
+.header-logout:hover { color: white; }
+
+/* LOGIN */
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; padding-top: 80px; }
+.login-card { background: white; padding: 3rem 2.5rem; width: 100%; max-width: 360px; box-shadow: var(--shadow-lg); text-align: center; }
+.login-logo { width: 72px; height: 72px; border-radius: 50%; object-fit: contain; margin: 0 auto 1.5rem; display: block; padding: 8px; background: var(--ivory); border: 3px solid var(--cream); }
+.login-title { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 300; color: var(--charcoal); margin-bottom: 0.4rem; }
+.login-sub { font-size: 13px; color: var(--text-soft); margin-bottom: 2rem; }
+.form-label { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-soft); margin-bottom: 0.5rem; display: block; text-align: left; }
+.form-input { width: 100%; padding: 13px 14px; background: var(--ivory); border: 1px solid var(--border); font-size: 14px; color: var(--charcoal); font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s; margin-bottom: 1rem; }
+.form-input:focus { border-color: var(--green); }
+.form-input.error { border-color: var(--red); }
+.login-error { font-size: 13px; color: var(--red); margin-bottom: 1rem; display: none; }
+.login-error.show { display: block; }
+.btn-primary { width: 100%; padding: 14px; background: var(--green); color: white; border: none; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; font-family: 'Inter', sans-serif; transition: background 0.2s; box-shadow: 0 4px 16px rgba(61,122,104,0.3); }
+.btn-primary:hover { background: var(--green-dark); }
+
+/* LAYOUT */
+.app { display: none; padding-top: 64px; min-height: 100vh; }
+.sidebar { position: fixed; top: 64px; left: 0; bottom: 0; width: 220px; background: white; border-right: 1px solid var(--border-lt); padding: 1.5rem 0; box-shadow: var(--shadow-sm); z-index: 50; }
+.sidebar-item { display: flex; align-items: center; gap: 10px; padding: 12px 1.5rem; font-size: 13px; color: var(--text-soft); cursor: pointer; transition: all 0.2s; border-left: 2px solid transparent; letter-spacing: 0.04em; }
+.sidebar-item:hover { background: var(--ivory); color: var(--charcoal); }
+.sidebar-item.active { background: var(--green-bg); color: var(--green-dark); border-left-color: var(--green); font-weight: 500; }
+.sidebar-icon { font-size: 16px; }
+.sidebar-divider { height: 1px; background: var(--border-lt); margin: 0.75rem 0; }
+.content { margin-left: 220px; padding: 2rem; min-height: calc(100vh - 64px); }
+
+/* SECTION HEADER */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
+.section-title { font-family: 'Cormorant Garamond', serif; font-size: 2rem; font-weight: 300; color: var(--charcoal); }
+.section-title em { font-style: italic; color: var(--green); }
+
+/* STATS ROW */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.stat-card { background: white; border: 1px solid var(--border-lt); padding: 1.25rem; box-shadow: var(--shadow-sm); }
+.stat-card-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-soft); margin-bottom: 0.5rem; }
+.stat-card-value { font-family: 'Cormorant Garamond', serif; font-size: 2.2rem; font-weight: 300; color: var(--charcoal); line-height: 1; }
+.stat-card-sub { font-size: 11px; color: var(--text-soft); margin-top: 4px; }
+.stat-card.alert .stat-card-value { color: var(--red); }
+.stat-card.warn .stat-card-value { color: var(--orange); }
+
+/* BUTTONS */
+.btn { padding: 10px 20px; font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s; border: none; }
+.btn-green { background: var(--green); color: white; box-shadow: 0 4px 12px rgba(61,122,104,0.25); }
+.btn-green:hover { background: var(--green-dark); }
+.btn-outline { background: white; color: var(--text-mid); border: 1px solid var(--border); }
+.btn-outline:hover { border-color: var(--green); color: var(--green-dark); }
+.btn-red { background: var(--red); color: white; }
+.btn-red:hover { background: #A93226; }
+.btn-orange { background: var(--orange); color: white; }
+.btn-sm { padding: 6px 12px; font-size: 11px; }
+
+/* TABLE */
+.table-wrap { background: white; border: 1px solid var(--border-lt); box-shadow: var(--shadow-sm); overflow-x: auto; margin-bottom: 2rem; }
+.table-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-lt); display: flex; align-items: center; justify-content: space-between; }
+.table-title { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-soft); }
+table { width: 100%; border-collapse: collapse; }
+th { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-soft); font-weight: 500; padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border-lt); background: var(--ivory); white-space: nowrap; }
+td { padding: 12px 16px; border-bottom: 1px solid var(--border-lt); font-size: 13px; color: var(--text-mid); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--ivory); }
+.td-name { font-size: 14px; color: var(--charcoal); font-weight: 400; }
+.td-group { font-size: 11px; color: var(--green); background: var(--green-bg); padding: 2px 8px; display: inline-block; }
+.td-pin { font-family: monospace; font-size: 13px; color: var(--text-mid); letter-spacing: 0.1em; }
+.td-actions { display: flex; gap: 0.5rem; }
+
+/* PAYMENT TABLE */
+.group-block { margin-bottom: 2rem; }
+.group-block-title { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 400; color: var(--charcoal); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
+.group-block-title::after { content: ''; flex: 1; height: 1px; background: var(--border-lt); }
+.payment-table { width: 100%; border-collapse: collapse; background: white; border: 1px solid var(--border-lt); box-shadow: var(--shadow-sm); }
+.payment-table th { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-soft); padding: 10px 12px; background: var(--ivory); border-bottom: 1px solid var(--border-lt); border-right: 1px solid var(--border-lt); text-align: center; white-space: nowrap; }
+.payment-table th:first-child { text-align: left; min-width: 140px; }
+.payment-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-lt); border-right: 1px solid var(--border-lt); text-align: center; }
+.payment-table td:first-child { text-align: left; font-size: 13px; color: var(--charcoal); }
+.payment-table tr:last-child td { border-bottom: none; }
+.pay-cell { width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.pay-cell.paid { background: var(--green-bg); color: var(--green-dark); }
+.pay-cell.paid:hover { background: var(--green); color: white; }
+.pay-cell.unpaid { background: var(--red-bg); color: var(--red); }
+.pay-cell.unpaid:hover { background: var(--red); color: white; }
+.pay-cell.empty { background: var(--ivory2); color: var(--text-soft); cursor: default; }
+
+/* ATTENDANCE */
+.attendance-group { margin-bottom: 2rem; }
+.att-group-title { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 400; color: var(--charcoal); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
+.att-group-title::after { content: ''; flex: 1; height: 1px; background: var(--border-lt); }
+.att-table { width: 100%; border-collapse: collapse; background: white; border: 1px solid var(--border-lt); box-shadow: var(--shadow-sm); }
+.att-table th { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-soft); padding: 10px 12px; background: var(--ivory); border-bottom: 1px solid var(--border-lt); border-right: 1px solid var(--border-lt); text-align: center; white-space: nowrap; }
+.att-table th:first-child { text-align: left; min-width: 140px; }
+.att-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-lt); border-right: 1px solid var(--border-lt); text-align: center; font-size: 13px; }
+.att-table td:first-child { text-align: left; color: var(--charcoal); }
+.att-table tr:last-child td { border-bottom: none; }
+.att-present { color: var(--green); font-size: 16px; }
+.att-absent { color: var(--border); font-size: 16px; }
+.att-rate { font-size: 11px; font-weight: 500; }
+.att-rate.good { color: var(--green); }
+.att-rate.warn { color: var(--orange); }
+.att-rate.bad { color: var(--red); }
+
+/* LÓGÓSOK */
+.hogos-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 2rem; }
+.hogos-item { background: white; border: 1px solid var(--border-lt); border-left: 3px solid var(--orange); padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow-sm); }
+.hogos-item.bad { border-left-color: var(--red); }
+.hogos-name { font-size: 14px; color: var(--charcoal); }
+.hogos-group { font-size: 11px; color: var(--text-soft); margin-top: 2px; }
+.hogos-rate { font-size: 13px; font-weight: 500; color: var(--orange); }
+.hogos-item.bad .hogos-rate { color: var(--red); }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(30,28,26,0.6); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1.5rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.modal-overlay.show { opacity: 1; pointer-events: all; }
+.modal { background: white; width: 100%; max-width: 460px; box-shadow: var(--shadow-lg); transform: translateY(20px); transition: transform 0.3s; }
+.modal-overlay.show .modal { transform: translateY(0); }
+.modal-header { padding: 1.5rem; border-bottom: 1px solid var(--border-lt); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 300; color: var(--charcoal); }
+.modal-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-soft); }
+.modal-body { padding: 1.5rem; }
+.modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border-lt); display: flex; gap: 0.75rem; justify-content: flex-end; }
+.form-row { margin-bottom: 1.25rem; }
+.form-select { width: 100%; padding: 13px 14px; background: var(--ivory); border: 1px solid var(--border); font-size: 14px; color: var(--charcoal); font-family: 'Inter', sans-serif; outline: none; appearance: none; }
+.form-select:focus { border-color: var(--green); }
+.generated-info { background: var(--green-bg); border: 1px solid var(--green-mid); padding: 1.25rem; margin-top: 1rem; display: none; }
+.generated-info.show { display: block; }
+.gen-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.gen-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--green-dark); }
+.gen-value { font-size: 1.1rem; font-weight: 500; color: var(--charcoal); letter-spacing: 0.1em; }
+
+/* QR PRINT */
+.qr-preview { text-align: center; padding: 1rem; background: white; border: 1px solid var(--border); margin-top: 1rem; display: none; }
+.qr-preview.show { display: block; }
+.qr-canvas { margin: 0 auto 0.5rem; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--charcoal); color: white; padding: 12px 24px; font-size: 13px; box-shadow: var(--shadow-lg); transition: transform 0.3s; white-space: nowrap; z-index: 300; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+.web-tab-content { }
+.teacher-edit-card { background: white; border: 1px solid var(--border-lt); padding: 1.5rem; box-shadow: var(--shadow-sm); }
+.teacher-photo-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: var(--green-bg); border: 2px solid var(--green-mid); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--green-dark); overflow: hidden; flex-shrink: 0; }
+.gallery-thumb { position: relative; aspect-ratio: 4/3; background: var(--cream2); overflow: hidden; }
+.gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-thumb-del { position: absolute; top: 6px; right: 6px; background: rgba(192,57,43,0.9); color: white; border: none; width: 24px; height: 24px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .content { margin-left: 0; padding: 1rem; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="basic-tancstudio.html" class="header-brand">
+    <img src="data:image/jpeg;base64,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UUUUAFFFFAAeleVW3jzwrofjDxE3ivV4LDXEuPs8cV0rKY7VQDH5Zxgq2S5I6k4P3Rj1Ws3VdB0jV3RtW0uwvmQYU3NukhUe24HFAHmes/H3wpDJ9n8PR6h4hvm4SGxt2wT/ALzD+QNclr8/xE8bW4bxNf2Pw+8LTNsKzzBJpQc/KckMTjPBKDjoa9/07S7DTYymnWVraIf4YIljH6AVW8Taa+raSbWIxq/nQy5k6YSVHP6KRQBy3w58G+FvAnl2Ghxia+ubY3Et7IytJJGCBknspLcBRjit+2Tw1ps+o63bnS7eW7jjubu9VkXzI8YR2f8AunacHocGsy58ManL42OvLfwLFtNqLfy+fs5jPG/Gc+Yd23pwOc1iaV8PtR0iwaG1urOZYVsJLW2k3CNXgZ3kjJwTsLOWU4JUnpgAUAac/h74e3ujxaI1tohsNRkN/HbRSqguGGSZF2kFsc8jjHHSrJj8F6l4SbSbKHSdR0RSIhY2ZjkRmX59oVTjcMbvwJNI2haxJ4i0jUkFhZmOMJe/Z5nKuoLnyxGU2sMvkPlWBLdQcU288NanDYWraabB723v7u5CTMyRsk5lABZVJBAkB6c4I75oAs6rp/gzxG2n6PqEWi3z26LcWlmzISibeGRAc7dvpwRWk2taNp39k2UNzZxrekRWcUToqsoBxtGR8owBx3IHeuXsvBeo22qWCGWxbTrZrOUz/N5+63i2bVXGAG7nd0JGOc1C/gjVFsreyjfTXimsbayupn3b4PJkZ98Py/MTu6ErhgDz0oA9HooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigArk/irqF5pXgDWL3Tbh7e7hjVklTGV+dc9fbNdZXJ/Fm2e7+GviWOMZcWErge6ru/pQBR8d6le2PjXwFDa3U0Vtd6jPDcRI2FlX7O7AMO+CAfrXdDpXnnjMjUPGvw2aMgqb24uc/7ItJD/7MK9DHSgAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACoL+2jvbK4tZhmKeNomHswIP86noNAHmHhRhe3Hw5kumxLb6VdJlv4pkWGJh9cBz+Br0+vK4LhLfStDgQ7bi28WTWiEdRmackfjGx/A16oOgoAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8f8Vvb6Z45trGSWOKaXXrDVrSNmwZfNU2swUd9uNx9NwNewDpVS70yxvLu1uruztp7m0YtbyyRKzwkjBKEjK5HpVugAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD//2Q==" class="header-logo" alt="Basic">
+    <span class="header-name">Basic Táncstúdió</span>
+  </a>
+  <div class="header-right">
+    <div class="header-badge">Admin</div>
+    <button class="header-logout" id="logoutBtn" onclick="logout()">Kilépés</button>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <img src="data:image/jpeg;base64,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UUUUAFFFFAAeleVW3jzwrofjDxE3ivV4LDXEuPs8cV0rKY7VQDH5Zxgq2S5I6k4P3Rj1Ws3VdB0jV3RtW0uwvmQYU3NukhUe24HFAHmes/H3wpDJ9n8PR6h4hvm4SGxt2wT/ALzD+QNclr8/xE8bW4bxNf2Pw+8LTNsKzzBJpQc/KckMTjPBKDjoa9/07S7DTYymnWVraIf4YIljH6AVW8Taa+raSbWIxq/nQy5k6YSVHP6KRQBy3w58G+FvAnl2Ghxia+ubY3Et7IytJJGCBknspLcBRjit+2Tw1ps+o63bnS7eW7jjubu9VkXzI8YR2f8AunacHocGsy58ManL42OvLfwLFtNqLfy+fs5jPG/Gc+Yd23pwOc1iaV8PtR0iwaG1urOZYVsJLW2k3CNXgZ3kjJwTsLOWU4JUnpgAUAac/h74e3ujxaI1tohsNRkN/HbRSqguGGSZF2kFsc8jjHHSrJj8F6l4SbSbKHSdR0RSIhY2ZjkRmX59oVTjcMbvwJNI2haxJ4i0jUkFhZmOMJe/Z5nKuoLnyxGU2sMvkPlWBLdQcU288NanDYWraabB723v7u5CTMyRsk5lABZVJBAkB6c4I75oAs6rp/gzxG2n6PqEWi3z26LcWlmzISibeGRAc7dvpwRWk2taNp39k2UNzZxrekRWcUToqsoBxtGR8owBx3IHeuXsvBeo22qWCGWxbTrZrOUz/N5+63i2bVXGAG7nd0JGOc1C/gjVFsreyjfTXimsbayupn3b4PJkZ98Py/MTu6ErhgDz0oA9HooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigArk/irqF5pXgDWL3Tbh7e7hjVklTGV+dc9fbNdZXJ/Fm2e7+GviWOMZcWErge6ru/pQBR8d6le2PjXwFDa3U0Vtd6jPDcRI2FlX7O7AMO+CAfrXdDpXnnjMjUPGvw2aMgqb24uc/7ItJD/7MK9DHSgAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACoL+2jvbK4tZhmKeNomHswIP86noNAHmHhRhe3Hw5kumxLb6VdJlv4pkWGJh9cBz+Br0+vK4LhLfStDgQ7bi28WTWiEdRmackfjGx/A16oOgoAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8f8Vvb6Z45trGSWOKaXXrDVrSNmwZfNU2swUd9uNx9NwNewDpVS70yxvLu1uruztp7m0YtbyyRKzwkjBKEjK5HpVugAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD//2Q==" class="login-logo" alt="Basic">
+    <div class="login-title">Admin belépés</div>
+    <div class="login-sub">Csak jogosult felhasználóknak</div>
+    <label class="form-label">Jelszó</label>
+    <input type="password" class="form-input" id="adminPass" placeholder="••••••••" onkeyup="if(event.key==='Enter') doLogin()">
+    <div class="login-error" id="loginError">Helytelen jelszó!</div>
+    <button class="btn btn-primary btn-green" onclick="doLogin()">Belépés</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="sidebar">
+    <div class="sidebar-item active" onclick="showSection('dashboard')">
+      <span class="sidebar-icon">📊</span> Áttekintés
+    </div>
+    <div class="sidebar-item" onclick="showSection('children')">
+      <span class="sidebar-icon">👧</span> Gyerekek
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-item" onclick="showSection('payment')">
+      <span class="sidebar-icon">💳</span> Fizetések
+    </div>
+    <div class="sidebar-item" onclick="showSection('attendance')">
+      <span class="sidebar-icon">📋</span> Jelenlét
+    </div>
+    <div class="sidebar-item" onclick="showSection('hogos')">
+      <span class="sidebar-icon">⚠️</span> Lógósok
+    </div>
+    <div class="sidebar-item" onclick="showSection('stilusok')">
+      <span class="sidebar-icon">💃</span> Stílusok
+    </div>
+    <div class="sidebar-item" onclick="showSection('gala')">
+      <span class="sidebar-icon">🎭</span> Gála jegyek
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-item" onclick="showSection('weboldal')">
+      <span class="sidebar-icon">🌐</span> Weboldal
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="section-dashboard">
+      <div class="section-header">
+        <div class="section-title">Áttekintés</div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-card-label">Összes tanuló</div>
+          <div class="stat-card-value" id="statTotal">0</div>
+          <div class="stat-card-sub">4 csoportban</div>
+        </div>
+        <div class="stat-card alert">
+          <div class="stat-card-label">Nem fizetett</div>
+          <div class="stat-card-value" id="statUnpaid">0</div>
+          <div class="stat-card-sub">ezen a hónapon</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="stat-card-label">Lógósok</div>
+          <div class="stat-card-value" id="statHogos">0</div>
+          <div class="stat-card-sub">50% alatt</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Mai dátum</div>
+          <div class="stat-card-value" style="font-size:1.4rem;" id="statDate">—</div>
+          <div class="stat-card-sub" id="statDay">—</div>
+        </div>
+      </div>
+
+      <div class="section-header" style="margin-bottom:1rem;">
+        <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);">Gyors műveletek</div>
+      </div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;">
+        <button class="btn btn-green" onclick="showSection('children');openAddModal()">+ Új gyerek felvétele</button>
+        <button class="btn btn-orange" onclick="sendPaymentReminders()" style="background:var(--orange);color:white;">📧 Fizetési emlékeztető küldése</button>
+        <button class="btn btn-outline" onclick="showSection('hogos')">⚠️ Lógósok megtekintése</button>
+      </div>
+
+      <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);margin-bottom:1rem;">Nem fizetők ezen a hónapon</div>
+      <div id="dashUnpaidList"></div>
+    </div>
+
+    <!-- GYEREKEK -->
+    <div id="section-children" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Gyerekek</div>
+        <button class="btn btn-green" onclick="openAddModal()">+ Új gyerek</button>
+      </div>
+      <div id="childrenByGroup"></div>
+    </div>
+
+    <!-- FIZETÉSEK -->
+    <div id="section-payment" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Fizetések</div>
+        <button class="btn btn-orange" onclick="sendPaymentReminders()" style="background:var(--orange);color:white;">📧 Emlékeztető küldése</button>
+      </div>
+      <div id="paymentByGroup"></div>
+    </div>
+
+    <!-- JELENLÉT -->
+    <div id="section-attendance" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Jelenlét</div>
+        <select class="form-select" id="attendanceMonthFilter" onchange="renderAttendance()" style="width:auto;padding:10px 16px;font-size:13px;">
+        </select>
+      </div>
+      <div id="attendanceByGroup"></div>
+    </div>
+
+    <!-- STÍLUSOK -->
+    <div id="section-stilusok" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Stílusok</div>
+      </div>
+      <p style="font-size:13px;color:var(--text-soft);margin-bottom:1.5rem;">Pipáld be gyerekenként melyik táncstílusokat tanulja. A szülői felületen is megjelenik.</p>
+      <div id="stilusokTable"></div>
+    </div>
+
+    <!-- GÁLA -->
+    <div id="section-gala" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Gála <em>jegyek</em></div>
+      </div>
+      <p style="font-size:13px;color:var(--text-soft);margin-bottom:1.5rem;">Add meg a jegy árát, majd látod ki mennyit rendelt és fizetett-e.</p>
+
+      <!-- Jegy ára -->
+      <div style="background:white;border:1px solid var(--border-lt);padding:1.5rem;box-shadow:var(--shadow-sm);margin-bottom:2rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);margin-bottom:6px;">Jegy ára</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="ticketPrice" value="2000" min="0" step="100"
+              style="width:120px;padding:10px 12px;border:1px solid var(--border);font-family:Inter,sans-serif;font-size:16px;color:var(--charcoal);background:var(--ivory);outline:none;"
+              oninput="renderGala()"
+              onfocus="this.style.borderColor='var(--green)'"
+              onblur="this.style.borderColor='var(--border)'">
+            <span style="font-size:14px;color:var(--text-soft);">Ft / jegy</span>
+          </div>
+        </div>
+        <div style="flex:1;"></div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Összes bevétel</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:var(--green-dark);" id="galaTotal">0 Ft</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Fizetve</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:var(--green);" id="galaPaid">0 Ft</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Hátralék</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:var(--red);" id="galaUnpaid">0 Ft</div>
+        </div>
+      </div>
+
+      <!-- Jegyek táblázat -->
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">Jegyfoglalások gyerekenként</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Gyerek neve</th>
+              <th>Csoport</th>
+              <th>Foglalt helyek</th>
+              <th>Jegyek száma</th>
+              <th>Fizetendő</th>
+              <th>Státusz</th>
+            </tr>
+          </thead>
+          <tbody id="galaTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- WEBOLDAL -->
+    <div id="section-weboldal" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Weboldal <em>szerkesztése</em></div>
+      </div>
+
+      <!-- TABS -->
+      <div class="schedule-tabs" style="margin-bottom:2rem;">
+        <button class="tab-btn active" onclick="switchWebTab(event,'oktatok')">Oktatók</button>
+        <button class="tab-btn" onclick="switchWebTab(event,'orarend')">Órarend</button>
+        <button class="tab-btn" onclick="switchWebTab(event,'korosztaly')">Korosztályok</button>
+        <button class="tab-btn" onclick="switchWebTab(event,'galeria')">Galéria</button>
+      </div>
+
+      <!-- OKTATÓK -->
+      <div id="webtab-oktatok" class="web-tab-content">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;" id="teacherCards"></div>
+        <button class="btn btn-green" style="margin-top:1.5rem;" onclick="addTeacher()">+ Új oktató</button>
+      </div>
+
+      <!-- ÓRAREND -->
+      <div id="webtab-orarend" class="web-tab-content" style="display:none;">
+        <div id="scheduleEditor"></div>
+        <button class="btn btn-green" style="margin-top:1.5rem;" onclick="addScheduleRow()">+ Új óra</button>
+      </div>
+
+      <!-- KOROSZTÁLYOK -->
+      <div id="webtab-korosztaly" class="web-tab-content" style="display:none;">
+        <div id="ageEditor"></div>
+      </div>
+
+      <!-- GALÉRIA -->
+      <div id="webtab-galeria" class="web-tab-content" style="display:none;">
+        <p style="font-size:13px;color:var(--text-soft);margin-bottom:1.5rem;">Töltsd fel a galéria képeit. Maximum 10 kép, minden kép max 2MB.</p>
+        <div style="margin-bottom:1.5rem;">
+          <label class="btn btn-green" style="cursor:pointer;display:inline-block;">
+            📷 Képek feltöltése
+            <input type="file" accept="image/*" multiple onchange="uploadGalleryImages(event)" style="display:none;">
+          </label>
+        </div>
+        <div id="galleryGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;"></div>
+      </div>
+
+    </div>
+
+    <!-- LÓGÓSOK -->
+    <div id="section-hogos" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Lógósok</div>
+      </div>
+      <p style="font-size:13px;color:var(--text-soft);margin-bottom:1.5rem;">Tanulók akik az összes alkalom 50%-ánál kevesebbet járnak.</p>
+      <div class="hogos-list" id="hogosList"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ADD CHILD MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Új gyerek felvétele</div>
+      <button class="modal-close" onclick="closeModal('addModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Gyerek neve *</label>
+        <input type="text" class="form-input" id="newChildName" placeholder="Pl. Kiss Anna">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Csoport *</label>
+        <select class="form-select" id="newChildGroup">
+          <option value="">— Válassz —</option>
+          <option value="Mesebalett">Mesebalett</option>
+          <option value="Közepesek">Közepesek</option>
+          <option value="Péntekiek">Péntekiek</option>
+          <option value="Szombati nagyok">Szombati nagyok</option>
+        </select>
+      </div>
+      <button class="btn btn-green" style="width:100%" onclick="generateChild()">Generálás</button>
+      <div class="generated-info" id="generatedInfo">
+        <div class="gen-row">
+          <span class="gen-label">PIN kód</span>
+          <span class="gen-value" id="genPin">—</span>
+        </div>
+        <div class="gen-row">
+          <span class="gen-label">QR kód azonosító</span>
+          <span class="gen-value" id="genQR">—</span>
+        </div>
+        <div style="font-size:12px;color:var(--green-dark);margin-top:0.5rem;">Add meg a PIN kódot a szülőnek! A szülő első belépéskor kitölti az adatokat.</div>
+      </div>
+      <div class="qr-preview" id="qrPreview">
+        <canvas id="qrCanvas" class="qr-canvas"></canvas>
+        <div style="font-size:12px;color:var(--text-soft);" id="qrChildName">—</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addModal')">Bezárás</button>
+      <button class="btn btn-green" onclick="printQR()" id="printBtn" style="display:none;">🖨️ QR nyomtatás</button>
+      <button class="btn btn-green" onclick="saveNewChild()" id="saveChildBtn" style="display:none;">Mentés</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT CHILD MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Adatok szerkesztése</div>
+      <button class="modal-close" onclick="closeModal('editModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Gyerek neve</label>
+        <input type="text" class="form-input" id="editName">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Csoport</label>
+        <select class="form-select" id="editGroup">
+          <option value="Mesebalett">Mesebalett</option>
+          <option value="Közepesek">Közepesek</option>
+          <option value="Péntekiek">Péntekiek</option>
+          <option value="Szombati nagyok">Szombati nagyok</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Születési dátum</label>
+        <input type="text" class="form-input" id="editBirthdate" placeholder="pl. 2018.05.12">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Szülő neve</label>
+        <input type="text" class="form-input" id="editParentName">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Szülő telefonszáma</label>
+        <input type="text" class="form-input" id="editParentPhone">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Szülő emailje</label>
+        <input type="email" class="form-input" id="editParentEmail">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Számlázási cím</label>
+        <input type="text" class="form-input" id="editBilling">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Havi díj (Ft)</label>
+        <input type="number" class="form-input" id="editFee" min="0" step="500" placeholder="pl. 8000">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Gyerek telefonja <span style="color:var(--text-soft);font-size:11px;">(nem kötelező)</span></label>
+        <input type="text" class="form-input" id="editChildPhone">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Gyerek emailje <span style="color:var(--text-soft);font-size:11px;">(nem kötelező)</span></label>
+        <input type="email" class="form-input" id="editChildEmail">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('editModal')">Mégsem</button>
+      <button class="btn btn-green" onclick="saveEdit()">Mentés</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+// ADMIN PASSWORD (élesítéskor változtasd meg!)
+const ADMIN_PASSWORD = "basic2025";
+
+// DEMO ADATBÁZIS
+const groups = ["Mesebalett", "Közepesek", "Péntekiek", "Szombati nagyok"];
+const months = ["2025. szeptember", "2025. október", "2025. november"];
+
+let children = [
+  { id: "BASIC-001", pin: "1234", name: "Kiss Anna",   group: "Mesebalett",     birthdate: "2019.03.15", parentName: "Kiss Mária",    parentPhone: "+36 30 123 4567", parentEmail: "kiss.maria@email.hu",   billing: "1047 Bp., Példa u. 12.", childPhone: "", childEmail: "", profileComplete: true, monthlyFee: 8000, styles: ["Mesebalett"],
+    payment: { "2025. szeptember": "paid", "2025. október": "paid", "2025. november": "unpaid" },
+    attendance: { "2025. szeptember": [true,true,true,false], "2025. október": [true,true,false,true] }
+  },
+  { id: "BASIC-002", pin: "5678", name: "Nagy Péter",  group: "Közepesek",      birthdate: "2016.07.22", parentName: "Nagy Katalin",  parentPhone: "+36 70 987 6543", parentEmail: "nagy.k@email.hu",       billing: "1052 Bp., Minta u. 5.",  childPhone: "", childEmail: "", profileComplete: true, monthlyFee: 10000, styles: ["Jazz", "Kortárs"],
+    payment: { "2025. szeptember": "paid", "2025. október": "unpaid", "2025. november": "unpaid" },
+    attendance: { "2025. szeptember": [true,false,false,true], "2025. október": [false,false,true,false] }
+  },
+  { id: "BASIC-003", pin: "9012", name: "Kovács Lili", group: "Péntekiek",      birthdate: "2014.11.03", parentName: "Kovács Péter",  parentPhone: "+36 20 555 1234", parentEmail: "kovacs.p@email.hu",     billing: "1101 Bp., Tánc u. 8.",   childPhone: "+36 30 111 2222", childEmail: "lili@email.hu", profileComplete: true, monthlyFee: 12000, styles: ["Jazz", "Versenyzés"],
+    payment: { "2025. szeptember": "paid", "2025. október": "paid", "2025. november": "paid" },
+    attendance: { "2025. szeptember": [true,true,true,true], "2025. október": [true,true,true,true] }
+  },
+  { id: "BASIC-004", pin: "3456", name: "Szabó Bence", group: "Szombati nagyok", birthdate: "2012.08.19", parentName: "Szabó Éva",    parentPhone: "+36 30 777 8888", parentEmail: "szabo.eva@email.hu",    billing: "1143 Bp., Sport u. 3.",  childPhone: "", childEmail: "", profileComplete: false, monthlyFee: 9000, styles: ["Kortárs", "Versenyzés"],
+    payment: { "2025. szeptember": "unpaid", "2025. október": "unpaid", "2025. november": "unpaid" },
+    attendance: { "2025. szeptember": [false,true,false,false], "2025. október": [false,false,false,true] }
+  },
+  { id: "BASIC-005", pin: "7890", name: "Tóth Emma",   group: "Mesebalett",     birthdate: "2020.01.25", parentName: "Tóth András",   parentPhone: "+36 70 444 5555", parentEmail: "toth.andras@email.hu",  billing: "1054 Bp., Virág u. 7.",  childPhone: "", childEmail: "", profileComplete: true, monthlyFee: 8000, styles: ["Mesebalett"],
+    payment: { "2025. szeptember": "paid", "2025. október": "paid", "2025. november": "paid" },
+    attendance: { "2025. szeptember": [true,true,true,true], "2025. október": [true,false,true,true] }
+  },
+];
+
+let editingChildId = null;
+let newChildData = null;
+
+// LOGIN
+function doLogin() {
+  const pass = document.getElementById('adminPass').value;
+  if (pass === ADMIN_PASSWORD) {
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('logoutBtn').style.display = 'block';
+    renderAll();
+  } else {
+    document.getElementById('adminPass').classList.add('error');
+    document.getElementById('loginError').classList.add('show');
+    document.getElementById('adminPass').value = '';
+  }
+}
+
+function logout() {
+  document.getElementById('loginWrap').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('adminPass').value = '';
+}
+
+// NAVIGATION
+function showSection(name) {
+  document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display = 'none');
+  document.getElementById('section-' + name).style.display = 'block';
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  event.currentTarget && event.currentTarget.classList.add('active');
+}
+
+// RENDER ALL
+function renderAll() {
+  updateDate();
+  renderStats();
+  initAttendanceFilter();
+  renderChildren();
+  renderStilusok();
+  renderGala();
+  renderPayment();
+  renderAttendance();
+  renderHogos();
+  renderDashUnpaid();
+}
+
+function updateDate() {
+  const now = new Date();
+  const days = ['Vasárnap','Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat'];
+  document.getElementById('statDate').textContent = now.toLocaleDateString('hu-HU', { month:'short', day:'numeric' });
+  document.getElementById('statDay').textContent = days[now.getDay()];
+}
+
+function renderStats() {
+  const currentMonth = months[months.length - 1];
+  const unpaid = children.filter(c => c.payment[currentMonth] === 'unpaid').length;
+  const hogos = getHogos().length;
+  document.getElementById('statTotal').textContent = children.length;
+  document.getElementById('statUnpaid').textContent = unpaid;
+  document.getElementById('statHogos').textContent = hogos;
+}
+
+function getHogos() {
+  return children.filter(c => {
+    let total = 0, present = 0;
+    Object.values(c.attendance).forEach(month => {
+      total += month.length;
+      present += month.filter(Boolean).length;
+    });
+    return total > 0 && present / total < 0.5;
+  });
+}
+
+function renderDashUnpaid() {
+  const currentMonth = months[months.length - 1];
+  const unpaid = children.filter(c => c.payment[currentMonth] === 'unpaid');
+  const el = document.getElementById('dashUnpaidList');
+  if (unpaid.length === 0) {
+    el.innerHTML = '<div style="background:white;border:1px solid var(--border-lt);padding:1.25rem;color:var(--text-soft);font-size:13px;font-style:italic;">Mindenki fizetett ezen a hónapon. 🎉</div>';
+    return;
+  }
+  el.innerHTML = unpaid.map(c => `
+    <div class="hogos-item" style="border-left-color:var(--red);margin-bottom:0.5rem;">
+      <div>
+        <div class="hogos-name">${c.name}</div>
+        <div class="hogos-group">${c.group} · ${c.parentEmail}</div>
+      </div>
+      <span style="font-size:12px;color:var(--red);font-weight:500;">Nem fizetve</span>
+    </div>`).join('');
+}
+
+// CHILDREN
+function renderChildren() {
+  const el = document.getElementById('childrenByGroup');
+  el.innerHTML = groups.map(g => {
+    const kids = children.filter(c => c.group === g);
+    if (kids.length === 0) return '';
+    return `
+      <div class="group-block">
+        <div class="group-block-title">${g}</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Név</th><th>PIN</th><th>Havi díj</th><th>Profil</th><th>Műveletek</th>
+            </tr></thead>
+            <tbody>${kids.map(c => `
+              <tr>
+                <td class="td-name">${c.name}</td>
+                <td class="td-pin">${c.pin}</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="number" value="${c.monthlyFee || 0}" min="0" step="500"
+                      style="width:90px;padding:5px 8px;border:1px solid var(--border);font-family:Inter,sans-serif;font-size:13px;background:var(--ivory);outline:none;"
+                      onchange="updateFee('${c.id}', this.value)"
+                      onfocus="this.style.borderColor='var(--green)'"
+                      onblur="this.style.borderColor='var(--border)'">
+                    <span style="font-size:12px;color:var(--text-soft);">Ft</span>
+                  </div>
+                </td>
+                <td><span style="font-size:11px;color:${c.profileComplete ? 'var(--green)' : 'var(--orange)'};">${c.profileComplete ? '✓ Kitöltve' : '⚠ Hiányos'}</span></td>
+                <td><div class="td-actions">
+                  <button class="btn btn-outline btn-sm" onclick="openEditModal('${c.id}')">Szerkesztés</button>
+                  <button class="btn btn-outline btn-sm" onclick="printChildQR('${c.id}')">QR</button>
+                  <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red);" onclick="deleteChild('${c.id}')">Törlés</button>
+                </div></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// PAYMENT
+function renderPayment() {
+  const el = document.getElementById('paymentByGroup');
+  el.innerHTML = groups.map(g => {
+    const kids = children.filter(c => c.group === g);
+    if (kids.length === 0) return '';
+    return `
+      <div class="group-block">
+        <div class="group-block-title">${g}</div>
+        <table class="payment-table">
+          <thead><tr>
+            <th>Név</th>
+            ${months.map(m => `<th>${m}</th>`).join('')}
+          </tr></thead>
+          <tbody>${kids.map(c => `
+            <tr>
+              <td>
+                <div>${c.name}</div>
+                <div style="font-size:11px;color:var(--text-soft);margin-top:2px;">Alap: ${formatFee(c.monthlyFee || 0)}</div>
+              </td>
+              ${months.map(m => {
+                const status = c.payment[m] || 'empty';
+                const fee = calcFee(c, m);
+                const icon = status === 'paid' ? '✓' : status === 'unpaid' ? '✗' : '·';
+                const feeLabel = status !== 'empty' ? `<div style="font-size:10px;color:var(--text-soft);margin-top:3px;">${formatFee(fee)}</div>` : '';
+                return `<td><button class="pay-cell ${status}" onclick="togglePayment('${c.id}','${m}')" ${status === 'empty' ? 'disabled' : ''}>${icon}</button>${feeLabel}</td>`;
+              }).join('')}
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }).join('');
+}
+
+function togglePayment(childId, month) {
+  const child = children.find(c => c.id === childId);
+  if (!child || !child.payment[month]) return;
+  child.payment[month] = child.payment[month] === 'paid' ? 'unpaid' : 'paid';
+  renderPayment();
+  renderStats();
+  renderDashUnpaid();
+  showToast('Fizetési státusz frissítve!');
+  // TODO: Google Sheets mentés
+}
+
+// ATTENDANCE
+function initAttendanceFilter() {
+  const sel = document.getElementById('attendanceMonthFilter');
+  sel.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
+  sel.value = months[months.length - 1];
+}
+
+function renderAttendance() {
+  const selectedMonth = document.getElementById('attendanceMonthFilter')?.value || months[months.length - 1];
+  const el = document.getElementById('attendanceByGroup');
+  el.innerHTML = groups.map(g => {
+    const kids = children.filter(c => c.group === g);
+    if (kids.length === 0) return '';
+    const monthData = kids[0]?.attendance[selectedMonth];
+    const lessonCount = monthData?.length || 4;
+    const lessonLabels = Array.from({length: lessonCount}, (_, i) => (i+1) + '. alkalom');
+    return `
+      <div class="attendance-group">
+        <div class="att-group-title">${g}</div>
+        <table class="att-table">
+          <thead><tr>
+            <th>Név</th>
+            ${lessonLabels.map(l => `<th>${l}</th>`).join('')}
+            <th>Havi</th>
+            <th>Összesített</th>
+          </tr></thead>
+          <tbody>${kids.map(c => {
+            const monthLessons = c.attendance[selectedMonth] || [];
+            const monthPresent = monthLessons.filter(Boolean).length;
+            const monthTotal = monthLessons.length;
+            let totalAll = 0, presentAll = 0;
+            Object.values(c.attendance).forEach(m => { totalAll += m.length; presentAll += m.filter(Boolean).length; });
+            const cells = monthLessons.map(p => `<td class="${p ? 'att-present' : 'att-absent'}">${p ? '✓' : '○'}</td>`).join('');
+            const emptyPad = Array(lessonCount - monthLessons.length).fill('<td style="color:var(--border);">—</td>').join('');
+            const monthRate = monthTotal > 0 ? Math.round(monthPresent/monthTotal*100) : 0;
+            const monthClass = monthRate >= 75 ? 'good' : monthRate >= 50 ? 'warn' : 'bad';
+            const totalRate = totalAll > 0 ? Math.round(presentAll/totalAll*100) : 0;
+            const totalClass = totalRate >= 75 ? 'good' : totalRate >= 50 ? 'warn' : 'bad';
+            return `<tr><td>${c.name}</td>${cells}${emptyPad}<td><span class="att-rate ${monthClass}">${monthPresent}/${monthTotal}</span></td><td><span class="att-rate ${totalClass}">${presentAll}/${totalAll} (${totalRate}%)</span></td></tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }).join('');
+}
+
+// HOGOS
+function renderHogos() {
+  const hogos = getHogos();
+  const el = document.getElementById('hogosList');
+  if (hogos.length === 0) {
+    el.innerHTML = '<div style="background:white;border:1px solid var(--border-lt);padding:1.5rem;color:var(--text-soft);font-size:13px;font-style:italic;">Nincs lógós tanuló. 🎉</div>';
+    return;
+  }
+  el.innerHTML = hogos.map(c => {
+    let total = 0, present = 0;
+    Object.values(c.attendance).forEach(m => { total += m.length; present += m.filter(Boolean).length; });
+    const rate = Math.round(present/total*100);
+    return `
+      <div class="hogos-item ${rate < 25 ? 'bad' : ''}">
+        <div>
+          <div class="hogos-name">${c.name}</div>
+          <div class="hogos-group">${c.group}</div>
+        </div>
+        <span class="hogos-rate">${present}/${total} alkalom (${rate}%)</span>
+      </div>`;
+  }).join('');
+}
+
+// ADD CHILD
+function openAddModal() {
+  document.getElementById('newChildName').value = '';
+  document.getElementById('newChildGroup').value = '';
+  document.getElementById('generatedInfo').classList.remove('show');
+  document.getElementById('qrPreview').classList.remove('show');
+  document.getElementById('printBtn').style.display = 'none';
+  document.getElementById('saveChildBtn').style.display = 'none';
+  newChildData = null;
+  document.getElementById('addModal').classList.add('show');
+}
+
+function generateChild() {
+  const name = document.getElementById('newChildName').value.trim();
+  const group = document.getElementById('newChildGroup').value;
+  if (!name || !group) { showToast('Add meg a nevet és a csoportot!'); return; }
+
+  const pin = String(Math.floor(1000 + Math.random() * 9000));
+  const id = 'BASIC-' + String(children.length + 1).padStart(3, '0');
+
+  newChildData = { id, pin, name, group };
+
+  document.getElementById('genPin').textContent = pin;
+  document.getElementById('genQR').textContent = id;
+  document.getElementById('generatedInfo').classList.add('show');
+  document.getElementById('printBtn').style.display = 'inline-flex';
+  document.getElementById('saveChildBtn').style.display = 'inline-flex';
+
+  // Generate QR
+  document.getElementById('qrCanvas').innerHTML = '';
+  document.getElementById('qrPreview').classList.add('show');
+  document.getElementById('qrChildName').textContent = name + ' · ' + group;
+  new QRCode(document.getElementById('qrCanvas'), { text: id, width: 160, height: 160, colorDark: '#1E4A3E', colorLight: '#FAF8F5' });
+}
+
+function saveNewChild() {
+  if (!newChildData) return;
+  const child = {
+    ...newChildData,
+    birthdate: '', parentName: '', parentPhone: '', parentEmail: '',
+    billing: '', childPhone: '', childEmail: '', profileComplete: false,
+    monthlyFee: 0,
+    styles: [],
+    payment: { [months[months.length-1]]: 'unpaid' },
+    attendance: {}
+  };
+  children.push(child);
+  closeModal('addModal');
+  renderAll();
+  showToast(newChildData.name + ' hozzáadva! PIN: ' + newChildData.pin);
+  newChildData = null;
+}
+
+function printChildQR(id) {
+  const child = children.find(c => c.id === id);
+  if (!child) return;
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><title>QR - ${child.name}</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+    <style>body{font-family:sans-serif;text-align:center;padding:2rem;} h2{margin-bottom:0.5rem;} p{color:#666;font-size:14px;margin-bottom:1rem;}</style>
+    </head><body>
+    <h2>Basic Táncstúdió</h2>
+    <p>${child.name} · ${child.group}</p>
+    <div id="qr"></div>
+    <p style="margin-top:1rem;">QR azonosító: ${child.id}</p>
+    <script>new QRCode(document.getElementById('qr'),{text:'${child.id}',width:200,height:200,colorDark:'#1E4A3E'});setTimeout(()=>window.print(),500);<\/script>
+    </body></html>`);
+}
+
+function printQR() {
+  if (!newChildData) return;
+  printChildQR(newChildData.id);
+}
+
+// EDIT CHILD
+function openEditModal(id) {
+  const child = children.find(c => c.id === id);
+  if (!child) return;
+  editingChildId = id;
+  document.getElementById('editName').value = child.name;
+  document.getElementById('editGroup').value = child.group;
+  document.getElementById('editBirthdate').value = child.birthdate || '';
+  document.getElementById('editParentName').value = child.parentName || '';
+  document.getElementById('editParentPhone').value = child.parentPhone || '';
+  document.getElementById('editParentEmail').value = child.parentEmail || '';
+  document.getElementById('editBilling').value = child.billing || '';
+  document.getElementById('editFee').value = child.monthlyFee || 0;
+  document.getElementById('editChildPhone').value = child.childPhone || '';
+  document.getElementById('editChildEmail').value = child.childEmail || '';
+  document.getElementById('editModal').classList.add('show');
+}
+
+function saveEdit() {
+  const child = children.find(c => c.id === editingChildId);
+  if (!child) return;
+  child.name = document.getElementById('editName').value;
+  child.group = document.getElementById('editGroup').value;
+  child.birthdate = document.getElementById('editBirthdate').value;
+  child.parentName = document.getElementById('editParentName').value;
+  child.parentPhone = document.getElementById('editParentPhone').value;
+  child.parentEmail = document.getElementById('editParentEmail').value;
+  child.billing = document.getElementById('editBilling').value;
+  child.monthlyFee = parseInt(document.getElementById('editFee').value) || 0;
+  child.childPhone = document.getElementById('editChildPhone').value;
+  child.childEmail = document.getElementById('editChildEmail').value;
+  child.profileComplete = !!(child.parentName && child.parentPhone && child.parentEmail && child.birthdate);
+  closeModal('editModal');
+  renderAll();
+  showToast('Adatok mentve!');
+  // TODO: Google Sheets mentés
+}
+
+function updateFee(childId, value) {
+  const child = children.find(c => c.id === childId);
+  if (!child) return;
+  child.monthlyFee = parseInt(value) || 0;
+  renderPayment();
+  showToast('Díj frissítve: ' + formatFee(child.monthlyFee));
+  // TODO: Google Sheets mentés
+}
+
+function deleteChild(id) {
+  const child = children.find(c => c.id === id);
+  if (!child) return;
+  if (!confirm(child.name + ' törlése? Ez visszavonhatatlan!')) return;
+  children = children.filter(c => c.id !== id);
+  renderAll();
+  showToast(child.name + ' törölve.');
+}
+
+// EMAIL REMINDER
+function sendPaymentReminders() {
+  const currentMonth = months[months.length - 1];
+  const unpaid = children.filter(c => c.payment[currentMonth] === 'unpaid' && c.parentEmail);
+  if (unpaid.length === 0) { showToast('Mindenki fizetett! Nem kell emlékeztetőt küldeni.'); return; }
+  // TODO: Gmail API összekötés
+  showToast('📧 Emlékeztető elküldve ' + unpaid.length + ' szülőnek! (Google Sheets összekötés után éles)');
+}
+
+// MODAL
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+});
+
+// STÍLUSOK
+const STYLES = ["Mesebalett", "Jazz", "Kortárs", "Versenyzés"];
+
+function renderStilusok() {
+  const el = document.getElementById('stilusokTable');
+  el.innerHTML = groups.map(g => {
+    const kids = children.filter(c => c.group === g);
+    if (kids.length === 0) return '';
+    return `
+      <div class="group-block">
+        <div class="group-block-title">${g}</div>
+        <table class="payment-table">
+          <thead><tr>
+            <th>Név</th>
+            ${STYLES.map(s => `<th>${s}</th>`).join('')}
+          </tr></thead>
+          <tbody>${kids.map(c => `
+            <tr>
+              <td>${c.name}</td>
+              ${STYLES.map(s => {
+                const checked = (c.styles || []).includes(s);
+                return `<td>
+                  <button class="pay-cell ${checked ? 'paid' : 'unpaid'}"
+                    onclick="toggleStyle('${c.id}', '${s}')">
+                    ${checked ? '✓' : '○'}
+                  </button>
+                </td>`;
+              }).join('')}
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }).join('');
+}
+
+function toggleStyle(childId, style) {
+  const child = children.find(c => c.id === childId);
+  if (!child) return;
+  if (!child.styles) child.styles = [];
+  if (child.styles.includes(style)) {
+    child.styles = child.styles.filter(s => s !== style);
+  } else {
+    child.styles.push(style);
+  }
+  renderStilusok();
+  showToast('Stílus frissítve!');
+  // TODO: Google Sheets mentés
+}
+
+// GÁLA JEGYEK
+// Demo foglalások - Google Sheets összekötés után automatikus
+let galaBookings = [
+  { childName: "Kiss Anna",   seats: ["Földszint bal 1. sor 3. szék", "Földszint bal 1. sor 4. szék"], paid: false },
+  { childName: "Kovács Lili", seats: ["Erkély bal közép 1. sor 2. szék"], paid: true },
+  { childName: "Tóth Emma",   seats: ["Földszint jobb 2. sor 1. szék", "Földszint jobb 2. sor 2. szék", "Földszint jobb 2. sor 3. szék"], paid: false },
+];
+
+function renderGala() {
+  const price = parseInt(document.getElementById('ticketPrice').value) || 0;
+  const tbody = document.getElementById('galaTableBody');
+  if (!tbody) return;
+
+  let totalAmount = 0, paidAmount = 0;
+
+  // Merge bookings by child name
+  const byChild = {};
+  galaBookings.forEach(b => {
+    if (!byChild[b.childName]) {
+      const child = children.find(c => c.name === b.childName);
+      byChild[b.childName] = {
+        name: b.childName,
+        group: child ? child.group : '—',
+        seats: [],
+        paid: b.paid
+      };
+    }
+    byChild[b.childName].seats.push(...b.seats);
+  });
+
+  // Add children with no bookings
+  children.forEach(c => {
+    if (!byChild[c.name]) {
+      byChild[c.name] = { name: c.name, group: c.group, seats: [], paid: false };
+    }
+  });
+
+  const rows = Object.values(byChild);
+  rows.sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
+
+  tbody.innerHTML = rows.map(r => {
+    const count = r.seats.length;
+    const amount = count * price;
+    totalAmount += amount;
+    if (r.paid) paidAmount += amount;
+
+    const seatsHtml = count > 0
+      ? r.seats.map(s => `<div style="font-size:11px;color:var(--text-soft);">${s}</div>`).join('')
+      : '<span style="font-size:12px;color:var(--border);font-style:italic;">Nincs foglalás</span>';
+
+    const statusBtn = count > 0 ? `
+      <button onclick="toggleGalaPaid('${r.name}')"
+        style="padding:5px 14px;font-size:11px;font-weight:500;border:none;cursor:pointer;font-family:Inter,sans-serif;letter-spacing:0.06em;
+        background:${r.paid ? 'var(--green-bg)' : 'var(--red-bg)'};
+        color:${r.paid ? 'var(--green-dark)' : 'var(--red)'};">
+        ${r.paid ? '✓ Fizetve' : '✗ Nem fizetve'}
+      </button>` : '<span style="color:var(--border);font-size:12px;">—</span>';
+
+    return `<tr>
+      <td class="td-name">${r.name}</td>
+      <td><span class="td-group">${r.group}</span></td>
+      <td>${seatsHtml}</td>
+      <td style="text-align:center;font-size:15px;font-weight:500;color:${count > 0 ? 'var(--charcoal)' : 'var(--border)'};">${count > 0 ? count : '—'}</td>
+      <td style="font-size:14px;font-weight:500;color:${count > 0 ? 'var(--charcoal)' : 'var(--border)'};">${count > 0 ? formatFee(amount) : '—'}</td>
+      <td>${statusBtn}</td>
+    </tr>`;
+  }).join('');
+
+  const unpaidAmount = totalAmount - paidAmount;
+  document.getElementById('galaTotal').textContent = formatFee(totalAmount);
+  document.getElementById('galaPaid').textContent = formatFee(paidAmount);
+  document.getElementById('galaUnpaid').textContent = formatFee(unpaidAmount);
+}
+
+function toggleGalaPaid(childName) {
+  const booking = galaBookings.find(b => b.childName === childName);
+  if (!booking) return;
+  // Toggle all bookings for this child
+  const newStatus = !booking.paid;
+  galaBookings.forEach(b => { if (b.childName === childName) b.paid = newStatus; });
+  renderGala();
+  showToast('Fizetési státusz frissítve!');
+  // TODO: Google Sheets mentés
+}
+
+// WEBOLDAL SZERKESZTÉS
+let siteData = {
+  teachers: [
+    { id: 1, name: "Folmeg Barbara", quote: "Barbi néninek vannak a világon a legviccesebb zoknijai.", source: "Alsó tagozatos csoport", photo: null },
+    { id: 2, name: "Németh Kata", quote: "Kata tud repülni, tényleg tud, meg forogni a levegőben fejjel lefele. Ő a legmenőbb.", source: "Ovis csoport", photo: null },
+    { id: 3, name: "Mihály Kinga", quote: "Kinga néni mindig megmutatja háromszor is, ha nem értjük. És sosem unja meg.", source: "Suliscsoport", photo: null },
+    { id: 4, name: "Kötél Barbara", quote: "Ha nem ő fog tanítani minket, akkor nem jövök többet.", source: "Ovis csoport", photo: null },
+  ],
+  schedule: [
+    { day: "Szombat", time: "09:00 – 10:00", name: "Mesebalett", age: "4–6 éves", location: "Tapolca" },
+    { day: "Szombat", time: "10:15 – 12:15", name: "Közepesek", age: "6–12 éves", location: "Tapolca" },
+    { day: "Péntek", time: "16:30 – 19:30", name: "Péntekiek", age: "10–15 éves", location: "Tapolca" },
+    { day: "Szombat", time: "13:00 – 16:00", name: "Szombati nagyok", age: "12–18 éves", location: "Tapolca" },
+    { day: "Csütörtök", time: "17:30 – 18:30", name: "Modern tánc", age: "16+ éves", location: "Budapest" },
+  ],
+  ages: [
+    { style: "Mesebalett", meta: "Ovisoknak · 4–6 éves · Tapolca", desc: "Ha szereted a mókát és nem bánod, ha összekeveredik a balettcipőd a varázspálcáddal, itt a helyed.", photo: null },
+    { style: "Jazz tánc", meta: "Gyerekeknek · 6–18 éves · Tapolca", desc: "Pörgés, ugrálás, nevetés. Ha szeretnéd megtanulni az alapokat miközben jól érzed magad, a Basic a neked való hely.", photo: null },
+    { style: "Kortárs tánc", meta: "Gyerekeknek · 6–18 éves · Tapolca", desc: "Nincs szabály, csak fantázia. A kortárs tánc olyan, mint egy mozgó történet ahol te döntöd el mi történik.", photo: null },
+    { style: "Versenyzés", meta: "Gyerekeknek · 10–18 éves · Tapolca", desc: "Igazi koreográfiák, igazi zsűri, igazi sikerélmény.", photo: null },
+    { style: "Modern tánc", meta: "Felnőtteknek · 16+ · Budapest", desc: "Nincs szükség előzetes tapasztalatra, csak nyitottságra.", photo: null },
+  ],
+  gallery: []
+};
+
+function switchWebTab(e, tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.web-tab-content').forEach(c => c.style.display = 'none');
+  document.getElementById('webtab-' + tab).style.display = 'block';
+  e.target.classList.add('active');
+  if (tab === 'oktatok') renderTeachers();
+  if (tab === 'orarend') renderScheduleEditor();
+  if (tab === 'korosztaly') renderAgeEditor();
+  if (tab === 'galeria') renderGallery();
+}
+
+// OKTATÓK
+function renderTeachers() {
+  document.getElementById('teacherCards').innerHTML = siteData.teachers.map(t => `
+    <div class="teacher-edit-card">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;">
+        <div class="teacher-photo-preview" id="tphoto-${t.id}">
+          ${t.photo ? `<img src="${t.photo}" style="width:100%;height:100%;object-fit:cover;">` : t.name.split(' ').map(n=>n[0]).join('')}
+        </div>
+        <div>
+          <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+            📷 Fotó
+            <input type="file" accept="image/*" onchange="uploadTeacherPhoto(event, ${t.id})" style="display:none;">
+          </label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Név</label>
+        <input type="text" class="form-input" value="${t.name}" onchange="updateTeacher(${t.id}, 'name', this.value)">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Idézet</label>
+        <textarea class="form-input" style="min-height:80px;resize:vertical;" onchange="updateTeacher(${t.id}, 'quote', this.value)">${t.quote}</textarea>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Forrás (melyik csoport mondta)</label>
+        <input type="text" class="form-input" value="${t.source}" onchange="updateTeacher(${t.id}, 'source', this.value)">
+      </div>
+      <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red);width:100%;" onclick="deleteTeacher(${t.id})">Törlés</button>
+    </div>
+  `).join('');
+}
+
+function updateTeacher(id, field, value) {
+  const t = siteData.teachers.find(t => t.id === id);
+  if (t) { t[field] = value; showToast('Mentve!'); }
+}
+
+function uploadTeacherPhoto(event, id) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { showToast('Max 2MB!'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const t = siteData.teachers.find(t => t.id === id);
+    if (t) {
+      t.photo = e.target.result;
+      renderTeachers();
+      showToast('Fotó feltöltve!');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function addTeacher() {
+  const newId = Math.max(...siteData.teachers.map(t => t.id), 0) + 1;
+  siteData.teachers.push({ id: newId, name: "Új oktató", quote: "", source: "", photo: null });
+  renderTeachers();
+}
+
+function deleteTeacher(id) {
+  if (!confirm('Biztosan törlöd ezt az oktatót?')) return;
+  siteData.teachers = siteData.teachers.filter(t => t.id !== id);
+  renderTeachers();
+}
+
+// ÓRAREND
+function renderScheduleEditor() {
+  document.getElementById('scheduleEditor').innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nap</th><th>Időpont</th><th>Csoport neve</th><th>Korosztály</th><th>Helyszín</th><th></th></tr></thead>
+        <tbody>${siteData.schedule.map((s, i) => `
+          <tr>
+            <td><input type="text" class="form-input" value="${s.day}" onchange="updateSchedule(${i},'day',this.value)" style="min-width:100px;"></td>
+            <td><input type="text" class="form-input" value="${s.time}" onchange="updateSchedule(${i},'time',this.value)" style="min-width:130px;"></td>
+            <td><input type="text" class="form-input" value="${s.name}" onchange="updateSchedule(${i},'name',this.value)" style="min-width:140px;"></td>
+            <td><input type="text" class="form-input" value="${s.age}" onchange="updateSchedule(${i},'age',this.value)" style="min-width:100px;"></td>
+            <td><input type="text" class="form-input" value="${s.location}" onchange="updateSchedule(${i},'location',this.value)" style="min-width:100px;"></td>
+            <td><button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red);" onclick="deleteScheduleRow(${i})">✕</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function updateSchedule(i, field, value) {
+  siteData.schedule[i][field] = value;
+  showToast('Mentve!');
+}
+
+function addScheduleRow() {
+  siteData.schedule.push({ day: "Nap", time: "00:00 – 00:00", name: "Új óra", age: "", location: "Tapolca" });
+  renderScheduleEditor();
+}
+
+function deleteScheduleRow(i) {
+  siteData.schedule.splice(i, 1);
+  renderScheduleEditor();
+}
+
+// KOROSZTÁLYOK
+function renderAgeEditor() {
+  document.getElementById('ageEditor').innerHTML = siteData.ages.map((a, i) => `
+    <div class="teacher-edit-card" style="margin-bottom:1rem;">
+      <div style="display:flex;gap:1.5rem;align-items:flex-start;">
+        <div>
+          <div style="width:120px;height:80px;background:var(--cream2);overflow:hidden;margin-bottom:0.5rem;" id="agephoto-${i}">
+            ${a.photo ? `<img src="${a.photo}" style="width:100%;height:100%;object-fit:cover;">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:11px;">Nincs kép</div>'}
+          </div>
+          <label class="btn btn-outline btn-sm" style="cursor:pointer;display:block;text-align:center;">
+            📷 Kép
+            <input type="file" accept="image/*" onchange="uploadAgePhoto(event, ${i})" style="display:none;">
+          </label>
+        </div>
+        <div style="flex:1;">
+          <div class="form-row">
+            <label class="form-label">Táncstílus neve</label>
+            <input type="text" class="form-input" value="${a.style}" onchange="updateAge(${i},'style',this.value)">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Korosztály / helyszín sor</label>
+            <input type="text" class="form-input" value="${a.meta}" onchange="updateAge(${i},'meta',this.value)">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Leírás</label>
+            <textarea class="form-input" style="min-height:70px;resize:vertical;" onchange="updateAge(${i},'desc',this.value)">${a.desc}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function updateAge(i, field, value) {
+  siteData.ages[i][field] = value;
+  showToast('Mentve!');
+}
+
+function uploadAgePhoto(event, i) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { showToast('Max 2MB!'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    siteData.ages[i].photo = e.target.result;
+    renderAgeEditor();
+    showToast('Kép feltöltve!');
+  };
+  reader.readAsDataURL(file);
+}
+
+// GALÉRIA
+function renderGallery() {
+  const grid = document.getElementById('galleryGrid');
+  if (siteData.gallery.length === 0) {
+    grid.innerHTML = '<div style="grid-column:span 3;text-align:center;padding:2rem;color:var(--text-soft);font-style:italic;font-size:13px;">Még nincsenek galéria képek.</div>';
+    return;
+  }
+  grid.innerHTML = siteData.gallery.map((img, i) => `
+    <div class="gallery-thumb">
+      <img src="${img}" alt="Galéria ${i+1}">
+      <button class="gallery-thumb-del" onclick="deleteGalleryImage(${i})">✕</button>
+    </div>`).join('');
+}
+
+function uploadGalleryImages(event) {
+  const files = Array.from(event.target.files);
+  if (siteData.gallery.length + files.length > 10) {
+    showToast('Maximum 10 kép tölthető fel!');
+    return;
+  }
+  files.forEach(file => {
+    if (file.size > 2 * 1024 * 1024) { showToast(`${file.name} túl nagy (max 2MB)!`); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      siteData.gallery.push(e.target.result);
+      renderGallery();
+    };
+    reader.readAsDataURL(file);
+  });
+  showToast(`${files.length} kép feltöltve!`);
+  event.target.value = '';
+}
+
+function deleteGalleryImage(i) {
+  siteData.gallery.splice(i, 1);
+  renderGallery();
+  showToast('Kép törölve!');
+}
+
+// TOAST
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

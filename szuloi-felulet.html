@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Szülői felület — Basic Táncstúdió</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green:      #3D7A68;
+  --green-bg:   #EAF2EF;
+  --green-mid:  #6AA898;
+  --green-dark: #2A5E50;
+  --green-deep: #1E4A3E;
+  --cream:      #F5F0E8;
+  --ivory:      #FAF8F5;
+  --ivory2:     #F2EDE7;
+  --charcoal:   #1E1C1A;
+  --text-mid:   #4A4540;
+  --text-soft:  #8A837C;
+  --border:     #DDD6CE;
+  --border-lt:  #EDE7E1;
+  --shadow-sm:  0 2px 12px rgba(30,28,26,0.06);
+  --shadow-md:  0 8px 32px rgba(30,28,26,0.12);
+  --shadow-lg:  0 20px 60px rgba(30,28,26,0.14);
+  --red:        #C0392B;
+  --orange:     #E67E22;
+}
+html, body { height: 100%; }
+body { font-family: 'Inter', sans-serif; background: var(--ivory); color: var(--charcoal); font-size: 16px; }
+
+/* HEADER */
+.header { background: var(--green-deep); padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow-md); }
+.header-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.header-logo { width: 36px; height: 36px; border-radius: 50%; object-fit: contain; background: white; padding: 4px; }
+.header-name { font-family: 'Cormorant Garamond', serif; font-size: 1rem; color: white; letter-spacing: 0.08em; text-transform: uppercase; }
+.header-badge { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green-mid); background: rgba(106,168,152,0.15); padding: 4px 10px; border: 1px solid rgba(106,168,152,0.3); }
+.header-logout { font-size: 11px; color: rgba(255,255,255,0.5); background: none; border: none; cursor: pointer; font-family: 'Inter', sans-serif; letter-spacing: 0.06em; display: none; }
+.header-logout:hover { color: white; }
+
+/* LOGIN */
+.login-wrap { min-height: calc(100vh - 68px); display: flex; align-items: center; justify-content: center; padding: 2rem; }
+.login-card { background: white; padding: 3rem 2.5rem; width: 100%; max-width: 380px; box-shadow: var(--shadow-lg); text-align: center; }
+.login-logo { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--cream); object-fit: contain; margin: 0 auto 1.5rem; display: block; padding: 8px; background: var(--ivory); }
+.login-title { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 300; color: var(--charcoal); margin-bottom: 0.4rem; }
+.login-sub { font-size: 13px; color: var(--text-soft); margin-bottom: 2.5rem; }
+.pin-label { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-soft); margin-bottom: 0.75rem; display: block; text-align: left; }
+.pin-input {
+  width: 100%; padding: 16px; text-align: center;
+  font-size: 2rem; letter-spacing: 0.5em; font-family: 'Inter', sans-serif;
+  background: var(--ivory); border: 1px solid var(--border);
+  color: var(--charcoal); outline: none; transition: border-color 0.2s;
+  margin-bottom: 1rem;
+}
+.pin-input:focus { border-color: var(--green); }
+.pin-input.error { border-color: var(--red); animation: shake 0.3s ease; }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+.pin-error { font-size: 13px; color: var(--red); margin-bottom: 1rem; display: none; }
+.pin-error.show { display: block; }
+.login-btn { width: 100%; padding: 15px; background: var(--green); color: white; border: none; font-size: 13px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; font-family: 'Inter', sans-serif; transition: background 0.2s; box-shadow: 0 4px 16px rgba(61,122,104,0.3); }
+.login-btn:hover { background: var(--green-dark); }
+
+/* DASHBOARD */
+.dashboard { display: none; }
+.main { max-width: 520px; margin: 0 auto; padding: 1.5rem; }
+
+/* CHILD HEADER */
+.child-header { background: var(--green-deep); margin: -1.5rem -1.5rem 1.5rem; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; }
+.child-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--green); border: 2px solid var(--green-mid); display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; color: white; flex-shrink: 0; }
+.child-name { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 300; color: white; }
+.child-group { font-size: 11px; color: var(--green-mid); letter-spacing: 0.08em; margin-top: 2px; }
+
+/* CARDS */
+.card { background: white; border: 1px solid var(--border-lt); box-shadow: var(--shadow-sm); margin-bottom: 1rem; overflow: hidden; }
+.card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-lt); display: flex; align-items: center; justify-content: space-between; }
+.card-title { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-soft); }
+.card-action { font-size: 12px; color: var(--green); cursor: pointer; background: none; border: none; font-family: 'Inter', sans-serif; }
+.card-body { padding: 1.25rem; }
+
+/* FIZETÉS */
+.payment-status { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+.payment-badge { padding: 6px 14px; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; }
+.payment-badge.paid { background: var(--green-bg); color: var(--green-dark); }
+.payment-badge.unpaid { background: #FDECEA; color: var(--red); }
+.payment-month { font-size: 14px; color: var(--text-mid); }
+.payment-note { font-size: 12px; color: var(--text-soft); font-style: italic; margin-top: 0.5rem; }
+
+.payment-history { border-top: 1px solid var(--border-lt); padding-top: 1rem; }
+.payment-history-title { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-soft); margin-bottom: 0.75rem; }
+.payment-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-lt); }
+.payment-row:last-child { border-bottom: none; }
+.payment-row-month { font-size: 13px; color: var(--text-mid); }
+.payment-row-status { font-size: 11px; font-weight: 500; }
+.payment-row-status.paid { color: var(--green); }
+.payment-row-status.unpaid { color: var(--red); }
+
+/* JELENLÉT */
+.attendance-months { display: flex; flex-direction: column; gap: 1rem; }
+.month-block { }
+.month-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 400; color: var(--charcoal); margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between; }
+.month-score { font-size: 12px; color: var(--text-soft); font-family: 'Inter', sans-serif; }
+.month-score.good { color: var(--green); }
+.month-score.warn { color: var(--orange); }
+.attendance-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.attendance-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--ivory); border: 1px solid var(--border-lt); }
+.att-icon { font-size: 14px; flex-shrink: 0; }
+.att-date { font-size: 13px; color: var(--text-mid); flex: 1; }
+.att-status { font-size: 11px; font-weight: 500; }
+.att-status.present { color: var(--green); }
+.att-status.absent { color: var(--text-soft); }
+
+/* ADATOK */
+.data-grid { display: flex; flex-direction: column; gap: 0; }
+.data-row { display: flex; gap: 1rem; padding: 10px 0; border-bottom: 1px solid var(--border-lt); align-items: flex-start; }
+.data-row:last-child { border-bottom: none; }
+.data-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-soft); min-width: 130px; padding-top: 2px; flex-shrink: 0; }
+.data-value { font-size: 14px; color: var(--charcoal); flex: 1; }
+.data-value.editable { cursor: pointer; border-bottom: 1px dashed var(--border); padding-bottom: 1px; transition: border-color 0.2s; }
+.data-value.editable:hover { border-color: var(--green); color: var(--green-dark); }
+.data-input { font-size: 14px; color: var(--charcoal); border: 1px solid var(--green); padding: 4px 8px; width: 100%; font-family: 'Inter', sans-serif; outline: none; background: var(--ivory); }
+.data-optional { font-size: 10px; color: var(--text-soft); margin-left: 6px; }
+.edit-btn { width: 100%; padding: 12px; background: var(--green); color: white; border: none; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; font-family: 'Inter', sans-serif; transition: background 0.2s; margin-top: 1rem; display: none; }
+.edit-btn:hover { background: var(--green-dark); }
+.save-btn { width: 100%; padding: 12px; background: var(--green); color: white; border: none; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; font-family: 'Inter', sans-serif; transition: background 0.2s; margin-top: 1rem; display: none; }
+.save-btn:hover { background: var(--green-dark); }
+
+/* TABS */
+.tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border: 1px solid var(--border); }
+.tab { flex: 1; padding: 11px; border: none; background: white; font-size: 11px; color: var(--text-soft); cursor: pointer; font-family: 'Inter', sans-serif; letter-spacing: 0.1em; text-transform: uppercase; border-right: 1px solid var(--border); transition: all 0.2s; }
+.tab:last-child { border-right: none; }
+.tab.active { background: var(--green); color: white; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--charcoal); color: white; padding: 12px 24px; font-size: 13px; border-radius: 2px; box-shadow: var(--shadow-lg); transition: transform 0.3s; white-space: nowrap; z-index: 300; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="basic-tancstudio.html" class="header-brand">
+    <img src="data:image/jpeg;base64,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UUUUAFFFFAAeleVW3jzwrofjDxE3ivV4LDXEuPs8cV0rKY7VQDH5Zxgq2S5I6k4P3Rj1Ws3VdB0jV3RtW0uwvmQYU3NukhUe24HFAHmes/H3wpDJ9n8PR6h4hvm4SGxt2wT/ALzD+QNclr8/xE8bW4bxNf2Pw+8LTNsKzzBJpQc/KckMTjPBKDjoa9/07S7DTYymnWVraIf4YIljH6AVW8Taa+raSbWIxq/nQy5k6YSVHP6KRQBy3w58G+FvAnl2Ghxia+ubY3Et7IytJJGCBknspLcBRjit+2Tw1ps+o63bnS7eW7jjubu9VkXzI8YR2f8AunacHocGsy58ManL42OvLfwLFtNqLfy+fs5jPG/Gc+Yd23pwOc1iaV8PtR0iwaG1urOZYVsJLW2k3CNXgZ3kjJwTsLOWU4JUnpgAUAac/h74e3ujxaI1tohsNRkN/HbRSqguGGSZF2kFsc8jjHHSrJj8F6l4SbSbKHSdR0RSIhY2ZjkRmX59oVTjcMbvwJNI2haxJ4i0jUkFhZmOMJe/Z5nKuoLnyxGU2sMvkPlWBLdQcU288NanDYWraabB723v7u5CTMyRsk5lABZVJBAkB6c4I75oAs6rp/gzxG2n6PqEWi3z26LcWlmzISibeGRAc7dvpwRWk2taNp39k2UNzZxrekRWcUToqsoBxtGR8owBx3IHeuXsvBeo22qWCGWxbTrZrOUz/N5+63i2bVXGAG7nd0JGOc1C/gjVFsreyjfTXimsbayupn3b4PJkZ98Py/MTu6ErhgDz0oA9HooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigArk/irqF5pXgDWL3Tbh7e7hjVklTGV+dc9fbNdZXJ/Fm2e7+GviWOMZcWErge6ru/pQBR8d6le2PjXwFDa3U0Vtd6jPDcRI2FlX7O7AMO+CAfrXdDpXnnjMjUPGvw2aMgqb24uc/7ItJD/7MK9DHSgAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACoL+2jvbK4tZhmKeNomHswIP86noNAHmHhRhe3Hw5kumxLb6VdJlv4pkWGJh9cBz+Br0+vK4LhLfStDgQ7bi28WTWiEdRmackfjGx/A16oOgoAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8f8Vvb6Z45trGSWOKaXXrDVrSNmwZfNU2swUd9uNx9NwNewDpVS70yxvLu1uruztp7m0YtbyyRKzwkjBKEjK5HpVugAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD//2Q==" class="header-logo" alt="Basic">
+    <span class="header-name">Basic Táncstúdió</span>
+  </a>
+  <div style="display:flex;align-items:center;gap:1rem;">
+    <div class="header-badge">Szülői felület</div>
+    <button class="header-logout" id="logoutBtn" onclick="logout()">Kilépés</button>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCADIAMgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD6pooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooArX9/a6fHE97MkKSypCjN0LscKPxNWFYMoZSCpGQR3rxb4vRXs/iDXdNF7Ollf+H47iJS52wzQXiAso7ErKMkdcV7PbxJBBHFEu2ONQij0A4FAD6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoorD8V+JLTw7aRNKktzfXLGKzsYBumupMfdQfzY8KOSRQB538Sphe+OXtYSpaLTrewY/9NLy+iwv12QO30r2AV4v8PtOu/EXjSbUb54p4tPu3u764i+aKbUSnlpBEf4o7aI7c93Yn1r2igAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKK4/4heO7PwhBbwJbzalrl6dljpltzLO3r/sqO7GgC/438TR+GdKSZYHvNRupVtrGyjOHuZ2+6gPYcElugUE15atpqmteIrzQ9Ov/tHiOVAviLxBEPk02E8iytM/dY/mPvNluk+qaP4ysfC2v+N9emW68XQ2Eo0zT7Vd0OmK2N5Qc7pMdW5+7jms34XWsXjXRoNF0WLUtP8ABNlGG1C6ZjFcaxePgyAuDuCZyWIOTwMgcUAezeF7bRtL0uHR9Aa1W1sUEQhhkDGP/ewc5JySTyTmtivN9S+GOj6LDHqvgPS7fS/EFiRJAbdzGtyAfmhl5wyuMjJ5Bwc8V3erapY6Np8t9q13BZ2kQy808gRV/E0AXaK82j+KY1mQp4J8M614hjzgXaxi1tT9JZcZ/AGsy98aeOdRtHfRtB01Iorlra9exvRqFzaMpww8kiMFgR/ePrgigD1yio7VzLbRSMkiMyBisgAYZHQgcZqSgAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAMbxfr0XhvQbjUJInuJVKx29tH9+4mchY4192Yge3J7VieAvBzaTNca7r8iX3ivUAGu7rGVhXtBDn7sa9PVsZNS6tF/avxG0e1lBNtpVrJqJU8gzOfKiJ+i+cfqRXS6pqFppOnXN/qNxHbWdtGZZZZDhUUDJJoAtVxmv/ABC0bwrqstj4kivNLt+Db3r27PbTggE4dAdrA5BVsHuMg1hL8S9b1hVbwj4D1q/tpRmG8vnSyhcdm+Yltv4ZrufC1vqsPh+1j8S3EF1qrBnuHhXEYZmLbFH91QQoJ5IXJoA45/iraasTb+BdI1PxJdnhXiga3tUPq80gAA+gJpdN+H1xrmpQ618SLmDV76I7rbTYlP2Gy/3UP+sb/bb8BXowAAAAwB2paAGoixoqIoVFGAoGAB7VWt9Nsra+u723tLeK7u9v2iZIwHl2jC7j1OAcDNW6KACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAKqWECapNqADfaJYY4GOeNqM7Dj6u36VzHjjx14V8Pf8S7XrqO4urgYXTYoTczSg9B5Sgnn3pvxX13UtE8MRpoCodZ1O7h02zeT7sUspxvPsoBP1xWXoHhfw58KvDd/rupSm5v1jM1/q1z8887nqATyMk4CjrkZzQBp2Xja5uYhMngzxRFbY4eS3hVsf9czLv8Awxn2rp9I1O11azFzYyF49xRgylHRh1VlIBVh3BANeQeD/F2rR2198QfHusnR/D12hXTdFIU7o+qvjG5nPbHXJJ4xjqPg/qepeJU1zxPfWb2Nhqtyh0+3k+95MaBBI3u38gMZGDQB6JRRRQAUVBd3ltZRq95cQwI7rGrSuEBZjhVBPcngDvU9ABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFZeua1BpKwIUkuL25Yx21pDgyTMOTjPAAHJY4AHU0AXby0t72IR3cEU8YZXCyIGAZTlWGe4IBB7V4r8RLLUvit43fwvo9zDbaD4fdJdQuJojLHNdHlYdoI3bVzkZA5Oe1eqX0+sWfhzU74wx3OppbySwWVuNy7wpKoCeWJOBnjPYCqnw00GPw74PsbULN9qlBubuWddss1xJ80juOxJPTsMDtQBwf/AAp64XWRresanB4sv4seVb6tC0UKAfwxqjFEHoCjAeldsnj3QbfwHH4pvZxZaZsIKuBuWRWKmIAfeYMpGB1x6Vw/xT+Kbtd/8Ih8PR/afii8JgMsB3Ja5+8d3TcB+C9T0weC8L6bDL45svD92DqVh4OAtLLTgf8Aj+1A/PLO4P3Y1YsSx4ACDktggHs/hnxjrWs3tnLdaJbaVp94C1rb3d5i/mjyAZfJC4CjcCQWyAfzwfE/xR1ObXdQ0nwHo0WpnSztv7+6dkt4n/54pt5eQn5QB37HrXCeBtbGp+Jtd8c6vex3Go73s9PbGUsLYNtMoQ9C5+VFJyx3E8bmE+keLtOtfh/42vtPt5RpGmXRNkiPmO9uZzk+Y4wZSsjdjt24HzYBoA7vU7/QPiF43Gg6ha3k1r4bK310x2mzNwVIEUp7lM7vQkN6Utt8VJdZ1fHhXQ5NR0CG7js59Uebyllkdwu23TBMhGdxPAwCfQ15U9le2ngjwt4E8PyrC/ia7capqa4/fsAGnCEcFEBCkjhipA4zXuPhyKwbT7TQvCEax6Jpw8p76PlcjgpE38TnJ3OOBkjJY/KAdtRTY0WONUQYVQAB6CnUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAAeleVW3jzwrofjDxE3ivV4LDXEuPs8cV0rKY7VQDH5Zxgq2S5I6k4P3Rj1Ws3VdB0jV3RtW0uwvmQYU3NukhUe24HFAHmes/H3wpDJ9n8PR6h4hvm4SGxt2wT/ALzD+QNclr8/xE8bW4bxNf2Pw+8LTNsKzzBJpQc/KckMTjPBKDjoa9/07S7DTYymnWVraIf4YIljH6AVW8Taa+raSbWIxq/nQy5k6YSVHP6KRQBy3w58G+FvAnl2Ghxia+ubY3Et7IytJJGCBknspLcBRjit+2Tw1ps+o63bnS7eW7jjubu9VkXzI8YR2f8AunacHocGsy58ManL42OvLfwLFtNqLfy+fs5jPG/Gc+Yd23pwOc1iaV8PtR0iwaG1urOZYVsJLW2k3CNXgZ3kjJwTsLOWU4JUnpgAUAac/h74e3ujxaI1tohsNRkN/HbRSqguGGSZF2kFsc8jjHHSrJj8F6l4SbSbKHSdR0RSIhY2ZjkRmX59oVTjcMbvwJNI2haxJ4i0jUkFhZmOMJe/Z5nKuoLnyxGU2sMvkPlWBLdQcU288NanDYWraabB723v7u5CTMyRsk5lABZVJBAkB6c4I75oAs6rp/gzxG2n6PqEWi3z26LcWlmzISibeGRAc7dvpwRWk2taNp39k2UNzZxrekRWcUToqsoBxtGR8owBx3IHeuXsvBeo22qWCGWxbTrZrOUz/N5+63i2bVXGAG7nd0JGOc1C/gjVFsreyjfTXimsbayupn3b4PJkZ98Py/MTu6ErhgDz0oA9HooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigArk/irqF5pXgDWL3Tbh7e7hjVklTGV+dc9fbNdZXJ/Fm2e7+GviWOMZcWErge6ru/pQBR8d6le2PjXwFDa3U0Vtd6jPDcRI2FlX7O7AMO+CAfrXdDpXnnjMjUPGvw2aMgqb24uc/7ItJD/7MK9DHSgAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACoL+2jvbK4tZhmKeNomHswIP86noNAHmHhRhe3Hw5kumxLb6VdJlv4pkWGJh9cBz+Br0+vK4LhLfStDgQ7bi28WTWiEdRmackfjGx/A16oOgoAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA8f8Vvb6Z45trGSWOKaXXrDVrSNmwZfNU2swUd9uNx9NwNewDpVS70yxvLu1uruztp7m0YtbyyRKzwkjBKEjK5HpVugAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD//2Q==" class="login-logo" alt="Basic">
+    <div class="login-title">Szülői belépés</div>
+    <div class="login-sub">Add meg a gyermeked egyedi PIN kódját</div>
+    <label class="pin-label">PIN kód</label>
+    <input type="password" class="pin-input" id="pinInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="●●●●" onkeyup="onPinKey(event)">
+    <div class="pin-error" id="pinError">Helytelen PIN kód. Kérj segítséget az oktatótól!</div>
+    <button class="login-btn" onclick="doLogin()">Belépés</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboard">
+  <div class="main">
+
+    <div class="child-header">
+      <div class="child-avatar" id="childInitials">—</div>
+      <div>
+        <div class="child-name" id="childNameHeader">—</div>
+        <div class="child-group" id="childGroupHeader">—</div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('attendance')">Jelenlét</button>
+      <button class="tab" onclick="switchTab('payment')">Fizetés</button>
+      <button class="tab" onclick="switchTab('profile')">Adatok</button>
+    </div>
+
+    <!-- JELENLÉT -->
+    <div class="tab-content active" id="tab-attendance">
+      <div class="attendance-months" id="attendanceList"></div>
+    </div>
+
+    <!-- FIZETÉS -->
+    <div class="tab-content" id="tab-payment">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Aktuális hónap</span>
+        </div>
+        <div class="card-body">
+          <div class="payment-status">
+            <div class="payment-badge" id="currentPaymentBadge">—</div>
+            <div class="payment-month" id="currentPaymentMonth">—</div>
+          </div>
+          <div class="payment-note" id="paymentNote">—</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Előzmények</span>
+        </div>
+        <div class="card-body" style="padding:0 1.25rem;">
+          <div class="payment-history">
+            <div id="paymentHistory"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADATOK -->
+    <div class="tab-content" id="tab-profile">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Gyermek adatai</span>
+          <button class="card-action" onclick="toggleEdit()">Szerkesztés</button>
+        </div>
+        <div class="card-body">
+          <div class="data-grid" id="dataGrid"></div>
+          <button class="save-btn" id="saveBtn" onclick="saveData()">Mentés</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// DEMO adatbázis - Google Sheets összekötés után automatikus
+const database = {
+  "1234": {
+    name: "Kiss Anna",
+    group: "Mesebalett",
+    birthdate: "2019.03.15",
+    parentName: "Kiss Mária",
+    parentPhone: "+36 30 123 4567",
+    parentEmail: "kiss.maria@email.hu",
+    billingAddress: "1047 Budapest, Példa utca 12.",
+    childPhone: "",
+    childEmail: "",
+    styles: ["Mesebalett"],
+    payment: {
+      current: "paid",
+      history: [
+        { month: "2025. október", status: "paid" },
+        { month: "2025. szeptember", status: "paid" },
+        { month: "2025. augusztus", status: "unpaid" },
+      ]
+    },
+    attendance: [
+      {
+        month: "2025. október",
+        lessons: [
+          { date: "2025.10.04", present: true },
+          { date: "2025.10.11", present: true },
+          { date: "2025.10.18", present: false },
+          { date: "2025.10.25", present: true },
+        ]
+      },
+      {
+        month: "2025. szeptember",
+        lessons: [
+          { date: "2025.09.06", present: true },
+          { date: "2025.09.13", present: true },
+          { date: "2025.09.20", present: true },
+          { date: "2025.09.27", present: false },
+        ]
+      }
+    ]
+  },
+  "5678": {
+    name: "Nagy Péter",
+    group: "Közepesek",
+    birthdate: "2016.07.22",
+    parentName: "Nagy Katalin",
+    parentPhone: "+36 70 987 6543",
+    parentEmail: "nagy.katalin@email.hu",
+    billingAddress: "1052 Budapest, Minta utca 5.",
+    childPhone: "",
+    childEmail: "",
+    styles: ["Jazz", "Kortárs"],
+    payment: {
+      current: "unpaid",
+      history: [
+        { month: "2025. október", status: "unpaid" },
+        { month: "2025. szeptember", status: "paid" },
+      ]
+    },
+    attendance: [
+      {
+        month: "2025. október",
+        lessons: [
+          { date: "2025.10.05", present: true },
+          { date: "2025.10.12", present: false },
+          { date: "2025.10.19", present: false },
+          { date: "2025.10.26", present: true },
+        ]
+      }
+    ]
+  }
+};
+
+let currentChild = null;
+let editMode = false;
+
+function onPinKey(e) {
+  if (e.key === 'Enter') doLogin();
+  document.getElementById('pinInput').classList.remove('error');
+  document.getElementById('pinError').classList.remove('show');
+}
+
+function doLogin() {
+  const pin = document.getElementById('pinInput').value.trim();
+  const child = database[pin];
+  if (!child) {
+    document.getElementById('pinInput').classList.add('error');
+    document.getElementById('pinError').classList.add('show');
+    document.getElementById('pinInput').value = '';
+    return;
+  }
+  currentChild = child;
+  showDashboard(child);
+}
+
+function showDashboard(child) {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('logoutBtn').style.display = 'block';
+
+  // Header
+  const initials = child.name.split(' ').map(n => n[0]).join('');
+  document.getElementById('childInitials').textContent = initials;
+  document.getElementById('childNameHeader').textContent = child.name;
+  document.getElementById('childGroupHeader').textContent = child.group;
+
+  renderAttendance(child);
+  renderPayment(child);
+  renderProfile(child);
+}
+
+function renderAttendance(child) {
+  const list = document.getElementById('attendanceList');
+  list.innerHTML = child.attendance.map(m => {
+    const present = m.lessons.filter(l => l.present).length;
+    const total = m.lessons.length;
+    const scoreClass = present === total ? 'good' : present >= total * 0.75 ? 'good' : 'warn';
+    return `
+      <div class="card">
+        <div class="card-body">
+          <div class="month-name">
+            ${m.month}
+            <span class="month-score ${scoreClass}">${present}/${total} alkalom</span>
+          </div>
+          <div class="attendance-list">
+            ${m.lessons.map(l => `
+              <div class="attendance-item">
+                <span class="att-icon">${l.present ? '✅' : '○'}</span>
+                <span class="att-date">${l.date}</span>
+                <span class="att-status ${l.present ? 'present' : 'absent'}">${l.present ? 'Jelen volt' : 'Hiányzott'}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderPayment(child) {
+  const now = new Date();
+  const monthName = now.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long' });
+  const isPaid = child.payment.current === 'paid';
+
+  document.getElementById('currentPaymentBadge').textContent = isPaid ? '✓ Fizetve' : '✗ Nem fizetve';
+  document.getElementById('currentPaymentBadge').className = 'payment-badge ' + (isPaid ? 'paid' : 'unpaid');
+  document.getElementById('currentPaymentMonth').textContent = monthName;
+  document.getElementById('paymentNote').textContent = isPaid
+    ? 'A havi díj beérkezett, köszönjük!'
+    : 'A havi díj még nem érkezett be. Kérjük rendezd mielőbb!';
+
+  document.getElementById('paymentHistory').innerHTML = child.payment.history.map(h => `
+    <div class="payment-row">
+      <span class="payment-row-month">${h.month}</span>
+      <span class="payment-row-status ${h.status}">${h.status === 'paid' ? '✓ Fizetve' : '✗ Nem fizetve'}</span>
+    </div>
+  `).join('');
+}
+
+function renderProfile(child) {
+  const fields = [
+    { label: 'Gyermek neve', key: 'name', required: true },
+    { label: 'Születési dátum', key: 'birthdate', required: true },
+    { label: 'Szülő neve', key: 'parentName', required: true },
+    { label: 'Szülő telefonszáma', key: 'parentPhone', required: true },
+    { label: 'Szülő email', key: 'parentEmail', required: true },
+    { label: 'Számlázási cím', key: 'billingAddress', required: true },
+    { label: 'Gyermek telefonja', key: 'childPhone', required: false },
+    { label: 'Gyermek emailje', key: 'childEmail', required: false },
+  ];
+
+  const stylesRow = child.styles && child.styles.length > 0
+    ? `<div class="data-row">
+        <span class="data-label">Táncstílusok</span>
+        <span class="data-value">
+          ${child.styles.map(s => `<span style="display:inline-block;background:var(--green-bg);color:var(--green-dark);font-size:11px;padding:3px 10px;margin:2px;letter-spacing:0.06em;">${s}</span>`).join('')}
+        </span>
+       </div>`
+    : '';
+
+  document.getElementById('dataGrid').innerHTML = stylesRow + fields.map(f => `
+    <div class="data-row">
+      <span class="data-label">${f.label}${!f.required ? '<span class="data-optional">(nem kötelező)</span>' : ''}</span>
+      <span class="data-value" data-key="${f.key}">${child[f.key] || '—'}</span>
+    </div>
+  `).join('');
+}
+
+function toggleEdit() {
+  editMode = !editMode;
+  const grid = document.getElementById('dataGrid');
+  const saveBtn = document.getElementById('saveBtn');
+
+  if (editMode) {
+    // Switch to inputs
+    grid.querySelectorAll('.data-value').forEach(span => {
+      const key = span.dataset.key;
+      const val = currentChild[key] || '';
+      const input = document.createElement('input');
+      input.className = 'data-input';
+      input.value = val;
+      input.dataset.key = key;
+      span.replaceWith(input);
+    });
+    saveBtn.style.display = 'block';
+    document.querySelector('.card-action').textContent = 'Mégsem';
+  } else {
+    renderProfile(currentChild);
+    saveBtn.style.display = 'none';
+    document.querySelector('.card-action').textContent = 'Szerkesztés';
+  }
+}
+
+function saveData() {
+  document.querySelectorAll('.data-input').forEach(input => {
+    currentChild[input.dataset.key] = input.value;
+  });
+  editMode = false;
+  renderProfile(currentChild);
+  document.getElementById('saveBtn').style.display = 'none';
+  document.querySelector('.card-action').textContent = 'Szerkesztés';
+
+  // TODO: Mentés Google Sheets-be
+  showToast('Adatok mentve! ✓');
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function logout() {
+  currentChild = null;
+  document.getElementById('loginWrap').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('pinInput').value = '';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
