@@ -779,11 +779,11 @@ function renderPayment() {
                 <div style="font-size:11px;color:var(--text-soft);margin-top:2px;">Alap: ${formatFee(c.monthlyFee || 0)}</div>
               </td>
               ${months.map(m => {
-                const status = c.payment[m] || 'empty';
+                const status = c.payment ? (c.payment[m] || 'unpaid') : 'unpaid';
                 const fee = calcFee(c, m);
-                const icon = status === 'paid' ? '✓' : status === 'unpaid' ? '✗' : '·';
-                const feeLabel = status !== 'empty' ? `<div style="font-size:10px;color:var(--text-soft);margin-top:3px;">${formatFee(fee)}</div>` : '';
-                return `<td><button class="pay-cell ${status}" onclick="togglePayment('${c.id}','${m}')" ${status === 'empty' ? 'disabled' : ''}>${icon}</button>${feeLabel}</td>`;
+                const icon = status === 'paid' ? '✓' : '✗';
+                const feeLabel = `<div style="font-size:10px;color:var(--text-soft);margin-top:3px;">${formatFee(fee)}</div>`;
+                return `<td><button class="pay-cell ${status}" onclick="togglePayment('${c.id}','${m}')">${icon}</button>${feeLabel}</td>`;
               }).join('')}
             </tr>`).join('')}
           </tbody>
@@ -794,13 +794,20 @@ function renderPayment() {
 
 function togglePayment(childId, month) {
   const child = children.find(c => c.id === childId);
-  if (!child || !child.payment[month]) return;
-  child.payment[month] = child.payment[month] === 'paid' ? 'unpaid' : 'paid';
+  if (!child) return;
+  if (!child.payment) child.payment = {};
+  const current = child.payment[month] || 'unpaid';
+  child.payment[month] = current === 'paid' ? 'unpaid' : 'paid';
   renderPayment();
   renderStats();
   renderDashUnpaid();
   showToast('Fizetési státusz frissítve!');
-  // TODO: Google Sheets mentés
+  // Mentés Google Sheets-be
+  apiCall('savePayment', 'POST', {
+    childName: child.name,
+    month: month,
+    status: child.payment[month]
+  }).catch(e => console.error('Fizetés mentési hiba:', e));
 }
 
 // ATTENDANCE
@@ -1090,11 +1097,7 @@ function calcFee(child, month) {
 
 // GÁLA JEGYEK
 // Demo foglalások - Google Sheets összekötés után automatikus
-let galaBookings = [
-  { childName: "Kiss Anna",   seats: ["Földszint bal 1. sor 3. szék", "Földszint bal 1. sor 4. szék"], paid: false },
-  { childName: "Kovács Lili", seats: ["Erkély bal közép 1. sor 2. szék"], paid: true },
-  { childName: "Tóth Emma",   seats: ["Földszint jobb 2. sor 1. szék", "Földszint jobb 2. sor 2. szék", "Földszint jobb 2. sor 3. szék"], paid: false },
-];
+let galaBookings = []; // Betöltés Google Sheets-ből
 
 function renderGala() {
   const price = parseInt(document.getElementById('ticketPrice').value) || 0;
