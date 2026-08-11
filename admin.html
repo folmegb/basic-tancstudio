@@ -568,20 +568,24 @@ async function apiCall(action, method = 'GET', body = null) {
 async function loadChildrenFromSheets() {
   try {
     const data = await apiCall('getChildren');
-    if (data.children && data.children.length > 0) {
-      children = data.children.map(c => ({
-        ...c,
-        payment: {},
-        attendance: {},
-        profileComplete: c.profileComplete,
-        styles: c.styles || [],
-      }));
-      renderAll();
+    // Always replace with Sheets data (even if empty)
+    children = (data.children || []).map(c => ({
+      ...c,
+      payment: c.payment || {},
+      attendance: c.attendance || {},
+      profileComplete: c.profileComplete,
+      styles: c.styles || [],
+      monthlyFee: c.monthlyFee || 0,
+    }));
+    renderAll();
+    if (children.length > 0) {
       showToast('✅ Adatok betöltve a Google Sheets-ből!');
+    } else {
+      showToast('ℹ️ Még nincsenek gyerekek felvéve.');
     }
   } catch(e) {
     console.error('Sheets betöltési hiba:', e);
-    showToast('⚠️ Sheets betöltés sikertelen, demo adatok használata');
+    showToast('⚠️ Sheets kapcsolat sikertelen!');
   }
 }
 
