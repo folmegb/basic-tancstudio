@@ -612,28 +612,7 @@ const ADMIN_PASSWORD = "basic2025";
 const groups = ["Mesebalett", "Közepesek", "Péntekiek", "Szombati nagyok"];
 const months = ["2025. szeptember", "2025. október", "2025. november"];
 
-let children = [
-  { id: "BASIC-001", pin: "1234", name: "Kiss Anna",   group: "Mesebalett",     birthdate: "2019.03.15", parentName: "Kiss Mária",    parentPhone: "+36 30 123 4567", parentEmail: "kiss.maria@email.hu",   billing: "1047 Bp., Példa u. 12.", childPhone: "", childEmail: "", profileComplete: true, monthlyFee: 8000, styles: ["Mesebalett"],
-    payment: { "2025. szeptember": "paid", "2025. október": "paid", "2025. november": "unpaid" },
-    attendance: { "2025. szeptember": [true,true,true,false], "2025. október": [true,true,false,true] }
-  },
-  { id: "BASIC-002", pin: "5678", name: "Nagy Péter",  group: "Közepesek",      birthdate: "2016.07.22", parentName: "Nagy Katalin",  parentPhone: "+36 70 987 6543", parentEmail: "nagy.k@email.hu",       billing: "1052 Bp., Minta u. 5.",  childPhone: "", childEmail: "", profileComplete: true, monthlyFee: 10000, styles: ["Jazz", "Kortárs"],
-    payment: { "2025. szeptember": "paid", "2025. október": "unpaid", "2025. november": "unpaid" },
-    attendance: { "2025. szeptember": [true,false,false,true], "2025. október": [false,false,true,false] }
-  },
-  { id: "BASIC-003", pin: "9012", name: "Kovács Lili", group: "Péntekiek",      birthdate: "2014.11.03", parentName: "Kovács Péter",  parentPhone: "+36 20 555 1234", parentEmail: "kovacs.p@email.hu",     billing: "1101 Bp., Tánc u. 8.",   childPhone: "+36 30 111 2222", childEmail: "lili@email.hu", profileComplete: true, monthlyFee: 12000, styles: ["Jazz", "Versenyzés"],
-    payment: { "2025. szeptember": "paid", "2025. október": "paid", "2025. november": "paid" },
-    attendance: { "2025. szeptember": [true,true,true,true], "2025. október": [true,true,true,true] }
-  },
-  { id: "BASIC-004", pin: "3456", name: "Szabó Bence", group: "Szombati nagyok", birthdate: "2012.08.19", parentName: "Szabó Éva",    parentPhone: "+36 30 777 8888", parentEmail: "szabo.eva@email.hu",    billing: "1143 Bp., Sport u. 3.",  childPhone: "", childEmail: "", profileComplete: false, monthlyFee: 9000, styles: ["Kortárs", "Versenyzés"],
-    payment: { "2025. szeptember": "unpaid", "2025. október": "unpaid", "2025. november": "unpaid" },
-    attendance: { "2025. szeptember": [false,true,false,false], "2025. október": [false,false,false,true] }
-  },
-  { id: "BASIC-005", pin: "7890", name: "Tóth Emma",   group: "Mesebalett",     birthdate: "2020.01.25", parentName: "Tóth András",   parentPhone: "+36 70 444 5555", parentEmail: "toth.andras@email.hu",  billing: "1054 Bp., Virág u. 7.",  childPhone: "", childEmail: "", profileComplete: true, monthlyFee: 8000, styles: ["Mesebalett"],
-    payment: { "2025. szeptember": "paid", "2025. október": "paid", "2025. november": "paid" },
-    attendance: { "2025. szeptember": [true,true,true,true], "2025. október": [true,false,true,true] }
-  },
-];
+let children = []; // Betöltés Google Sheets-ből
 
 let editingChildId = null;
 let newChildData = null;
