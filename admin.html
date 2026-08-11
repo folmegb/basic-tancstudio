@@ -553,6 +553,54 @@ tr:hover td { background: var(--ivory); }
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
+// API - Google Sheets összekötés
+const API_URL = '/api/sheets';
+
+async function apiCall(action, method = 'GET', body = null) {
+  const url = `${API_URL}?action=${action}`;
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const resp = await fetch(url, opts);
+  if (!resp.ok) throw new Error(`API hiba: ${resp.status}`);
+  return resp.json();
+}
+
+async function loadChildrenFromSheets() {
+  try {
+    const data = await apiCall('getChildren');
+    if (data.children && data.children.length > 0) {
+      children = data.children.map(c => ({
+        ...c,
+        payment: {},
+        attendance: {},
+        profileComplete: c.profileComplete,
+        styles: c.styles || [],
+      }));
+      renderAll();
+      showToast('✅ Adatok betöltve a Google Sheets-ből!');
+    }
+  } catch(e) {
+    console.error('Sheets betöltési hiba:', e);
+    showToast('⚠️ Sheets betöltés sikertelen, demo adatok használata');
+  }
+}
+
+async function saveChildToSheets(child) {
+  try {
+    await apiCall('saveChild', 'POST', child);
+  } catch(e) {
+    console.error('Sheets mentési hiba:', e);
+  }
+}
+
+async function deleteChildFromSheets(id) {
+  try {
+    await apiCall('deleteChild', 'POST', { id });
+  } catch(e) {
+    console.error('Sheets törlési hiba:', e);
+  }
+}
+
 // ADMIN PASSWORD (élesítéskor változtasd meg!)
 const ADMIN_PASSWORD = "basic2025";
 
@@ -594,6 +642,7 @@ function doLogin() {
     document.getElementById('app').style.display = 'block';
     document.getElementById('logoutBtn').style.display = 'block';
     renderAll();
+    loadChildrenFromSheets();
   } else {
     document.getElementById('adminPass').classList.add('error');
     document.getElementById('loginError').classList.add('show');
@@ -881,6 +930,7 @@ function saveNewChild() {
   closeModal('addModal');
   renderAll();
   showToast(newChildData.name + ' hozzáadva! PIN: ' + newChildData.pin);
+  saveChildToSheets(child);
   newChildData = null;
 }
 
@@ -941,7 +991,7 @@ function saveEdit() {
   closeModal('editModal');
   renderAll();
   showToast('Adatok mentve!');
-  // TODO: Google Sheets mentés
+  saveChildToSheets(child);
 }
 
 function updateFee(childId, value) {
@@ -960,6 +1010,7 @@ function deleteChild(id) {
   children = children.filter(c => c.id !== id);
   renderAll();
   showToast(child.name + ' törölve.');
+  deleteChildFromSheets(id);
 }
 
 // EMAIL REMINDER

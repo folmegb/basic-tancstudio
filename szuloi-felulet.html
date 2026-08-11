@@ -312,15 +312,54 @@ const database = {
 let currentChild = null;
 let editMode = false;
 
+const API_URL = '/api/sheets';
+
+async function loadChildFromSheets(pin) {
+  try {
+    const data = await fetch(`${API_URL}?action=getChildren`);
+    const json = await data.json();
+    if (json.children) {
+      return json.children.find(c => c.pin === pin) || null;
+    }
+  } catch(e) {
+    console.error('Sheets betöltési hiba:', e);
+    return null;
+  }
+}
+
+async function saveProfileToSheets(child) {
+  try {
+    await fetch(`${API_URL}?action=saveChild`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(child)
+    });
+  } catch(e) {
+    console.error('Sheets mentési hiba:', e);
+  }
+}
+
 function onPinKey(e) {
   if (e.key === 'Enter') doLogin();
   document.getElementById('pinInput').classList.remove('error');
   document.getElementById('pinError').classList.remove('show');
 }
 
-function doLogin() {
+async function doLogin() {
   const pin = document.getElementById('pinInput').value.trim();
-  const child = database[pin];
+  const btn = document.querySelector('.login-btn');
+  btn.textContent = 'Betöltés...';
+  btn.disabled = true;
+
+  // Try Sheets first
+  let child = await loadChildFromSheets(pin);
+
+  // Fallback to demo database
+  if (!child) child = database[pin];
+
+  btn.textContent = 'Belépés';
+  btn.disabled = false;
+
   if (!child) {
     document.getElementById('pinInput').classList.add('error');
     document.getElementById('pinError').classList.add('show');
@@ -457,7 +496,7 @@ function saveData() {
   document.getElementById('saveBtn').style.display = 'none';
   document.querySelector('.card-action').textContent = 'Szerkesztés';
 
-  // TODO: Mentés Google Sheets-be
+  saveProfileToSheets(currentChild);
   showToast('Adatok mentve! ✓');
 }
 

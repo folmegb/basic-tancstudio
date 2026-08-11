@@ -186,7 +186,37 @@ let checkIns = [];
 let lastScanned = null;
 let lastScannedTime = 0;
 
-// DEMO adatbázis - Google Sheets összekötés után ez automatikus lesz
+const API_URL = '/api/sheets';
+let sheetsChildren = {};
+
+async function loadChildrenFromSheets() {
+  try {
+    const resp = await fetch(`${API_URL}?action=getChildren`);
+    const data = await resp.json();
+    if (data.children) {
+      sheetsChildren = {};
+      data.children.forEach(c => {
+        sheetsChildren[c.id] = { name: c.name, group: c.group };
+      });
+    }
+  } catch(e) {
+    console.error('Sheets betöltési hiba:', e);
+  }
+}
+
+async function saveAttendanceToSheets(childName, group, date) {
+  try {
+    await fetch(`${API_URL}?action=saveAttendance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ childName, group, date })
+    });
+  } catch(e) {
+    console.error('Sheets mentési hiba:', e);
+  }
+}
+
+// DEMO adatbázis - fallback ha nincs Sheets kapcsolat
 const children = {
   "BASIC-001": { name: "Kiss Anna",    group: "Mesebalett" },
   "BASIC-002": { name: "Nagy Péter",   group: "Közepesek" },
@@ -203,6 +233,7 @@ function updateDate() {
   document.getElementById('todayDay').textContent = days[now.getDay()];
 }
 updateDate();
+loadChildrenFromSheets();
 
 function toggleScanner() {
   if (scanning) stopScanner();
@@ -245,7 +276,7 @@ function onScanSuccess(qrCode) {
   lastScanned = qrCode;
   lastScannedTime = now;
 
-  const child = children[qrCode];
+  const child = sheetsChildren[qrCode] || children[qrCode];
   const time = new Date().toLocaleTimeString('hu-HU', { hour:'2-digit', minute:'2-digit' });
 
   if (!child) {
