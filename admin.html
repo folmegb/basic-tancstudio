@@ -254,6 +254,7 @@ tr:hover td { background: var(--ivory); }
     <div id="section-dashboard">
       <div class="section-header">
         <div class="section-title">Áttekintés</div>
+        <button class="btn btn-outline" onclick="refreshFromSheets()">🔄 Frissítés</button>
       </div>
       <div class="stats-row">
         <div class="stat-card">
@@ -295,7 +296,10 @@ tr:hover td { background: var(--ivory); }
     <div id="section-children" style="display:none;">
       <div class="section-header">
         <div class="section-title">Gyerekek</div>
-        <button class="btn btn-green" onclick="openAddModal()">+ Új gyerek</button>
+        <div style="display:flex;gap:0.75rem;">
+          <button class="btn btn-outline" onclick="refreshFromSheets()">🔄 Frissítés</button>
+          <button class="btn btn-green" onclick="openAddModal()">+ Új gyerek</button>
+        </div>
       </div>
       <div id="childrenByGroup"></div>
     </div>
@@ -565,6 +569,11 @@ async function apiCall(action, method = 'GET', body = null) {
   return resp.json();
 }
 
+async function refreshFromSheets() {
+  showToast('Frissítés...');
+  await loadChildrenFromSheets();
+}
+
 async function loadChildrenFromSheets() {
   try {
     const data = await apiCall('getChildren');
@@ -573,7 +582,7 @@ async function loadChildrenFromSheets() {
       ...c,
       payment: c.payment || {},
       attendance: c.attendance || {},
-      profileComplete: c.profileComplete,
+      profileComplete: !!(c.parentName && c.parentPhone && c.parentEmail && c.birthdate),
       styles: c.styles || [],
       monthlyFee: c.monthlyFee || 0,
     }));
