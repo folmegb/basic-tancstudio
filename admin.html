@@ -1078,6 +1078,11 @@ function toggleStyle(childId, style) {
   // TODO: Google Sheets mentés
 }
 
+// FORMAT FEE
+function formatFee(amount) {
+  return amount.toLocaleString('hu-HU') + ' Ft';
+}
+
 // GÁLA JEGYEK
 // Demo foglalások - Google Sheets összekötés után automatikus
 let galaBookings = [
