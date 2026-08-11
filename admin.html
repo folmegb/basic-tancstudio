@@ -999,7 +999,7 @@ function updateFee(childId, value) {
   child.monthlyFee = parseInt(value) || 0;
   renderPayment();
   showToast('Díj frissítve: ' + formatFee(child.monthlyFee));
-  // TODO: Google Sheets mentés
+  saveChildToSheets(child);
 }
 
 function deleteChild(id) {
@@ -1074,7 +1074,7 @@ function toggleStyle(childId, style) {
   }
   renderStilusok();
   showToast('Stílus frissítve!');
-  // TODO: Google Sheets mentés
+  saveChildToSheets(child);
 }
 
 // FORMAT FEE
