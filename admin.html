@@ -849,6 +849,7 @@ function togglePayment(childId, month) {
   renderPayment();
   renderStats();
   renderDashUnpaid();
+  renderPaymentSummary();
   showToast('Fizetési státusz frissítve!');
   // Mentés Google Sheets-be
   apiCall('savePayment', 'POST', {
