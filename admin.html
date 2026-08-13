@@ -918,7 +918,9 @@ function togglePayment(childId, month) {
 function initAttendanceFilter() {
   const sel = document.getElementById('attendanceMonthFilter');
   sel.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
-  sel.value = months[months.length - 1];
+  // Set current month
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  sel.value = months.includes(currentMonth) ? currentMonth : months[0];
 }
 
 // Attendance dates per group - loaded from Sheets
@@ -1018,11 +1020,16 @@ function addAttendanceDate() {
   
   // Format date: YYYY-MM-DD → YYYY.MM.DD
   const date = dateInput.replace(/-/g, '.');
+  const month = String(new Date(dateInput).getMonth() + 1).padStart(2, '0');
   
   if (!attendanceDates[group]) attendanceDates[group] = [];
   if (!attendanceDates[group].includes(date)) {
     attendanceDates[group].push(date);
   }
+  
+  // Switch filter to added month
+  const sel = document.getElementById('attendanceMonthFilter');
+  if (sel && months.includes(month)) sel.value = month;
   
   closeModal('addDateModal');
   renderAttendance();
