@@ -330,10 +330,43 @@ tr:hover td { background: var(--ivory); }
     <div id="section-attendance" style="display:none;">
       <div class="section-header">
         <div class="section-title">Jelenlét</div>
-        <select class="form-select" id="attendanceMonthFilter" onchange="renderAttendance()" style="width:auto;padding:10px 16px;font-size:13px;">
-        </select>
+        <div style="display:flex;gap:1rem;align-items:center;">
+          <select class="form-select" id="attendanceMonthFilter" onchange="renderAttendance()" style="width:auto;padding:10px 16px;font-size:13px;">
+          </select>
+          <button class="btn btn-green btn-sm" onclick="openAddAttendanceDate()">+ Dátum hozzáadása</button>
+        </div>
       </div>
       <div id="attendanceByGroup"></div>
+    </div>
+
+    <!-- ADD DATE MODAL -->
+    <div class="modal-overlay" id="addDateModal">
+      <div class="modal" style="max-width:380px;">
+        <div class="modal-header">
+          <div class="modal-title">Jelenlét rögzítése</div>
+          <button class="modal-close" onclick="closeModal('addDateModal')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label class="form-label">Dátum</label>
+            <input type="date" class="form-input" id="attendanceDateInput">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Csoport</label>
+            <select class="form-select" id="attendanceGroupInput">
+              <option value="Mesebalett">Mesebalett</option>
+              <option value="Közepesek">Közepesek</option>
+              <option value="Péntekiek">Péntekiek</option>
+              <option value="Szombati nagyok">Szombati nagyok</option>
+            </select>
+          </div>
+          <p style="font-size:12px;color:var(--text-soft);">Válaszd ki a dátumot és a csoportot — majd a jelenlét táblázatban tudod pipálni ki volt ott.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('addDateModal')">Mégsem</button>
+          <button class="btn btn-green" onclick="addAttendanceDate()">Hozzáadás</button>
+        </div>
+      </div>
     </div>
 
     <!-- STÍLUSOK -->
@@ -587,6 +620,26 @@ async function refreshFromSheets() {
   await loadChildrenFromSheets();
 }
 
+async function loadAttendanceFromSheets() {
+  for (const group of groups) {
+    try {
+      const data = await apiCall(`getAttendance&group=${encodeURIComponent(group)}`);
+      if (data.dates) {
+        attendanceDates[group] = data.dates.filter(Boolean);
+        // Map attendance by childId
+        children.filter(c => c.group === group).forEach(c => {
+          if (data.attendance[c.name]) {
+            attendanceData[c.id] = data.attendance[c.name];
+          }
+        });
+      }
+    } catch(e) {
+      console.error('Jelenlét betöltési hiba:', group, e);
+    }
+  }
+  renderAttendance();
+}
+
 async function loadChildrenFromSheets() {
   try {
     const data = await apiCall('getChildren');
@@ -648,6 +701,7 @@ function doLogin() {
     document.getElementById('logoutBtn').style.display = 'block';
     renderAll();
     loadChildrenFromSheets();
+    loadAttendanceFromSheets();
   } else {
     document.getElementById('adminPass').classList.add('error');
     document.getElementById('loginError').classList.add('show');
@@ -867,67 +921,115 @@ function initAttendanceFilter() {
   sel.value = months[months.length - 1];
 }
 
+// Attendance dates per group - loaded from Sheets
+let attendanceDates = {}; // { group: [date1, date2, ...] }
+// Attendance data per child per date
+let attendanceData = {}; // { childId: { date: true/false } }
+
 function renderAttendance() {
-  const selectedMonth = document.getElementById('attendanceMonthFilter')?.value || months[months.length - 1];
+  const selectedMonth = document.getElementById('attendanceMonthFilter')?.value || months[0];
   const el = document.getElementById('attendanceByGroup');
   el.innerHTML = groups.map(g => {
     const kids = children.filter(c => c.group === g);
     if (kids.length === 0) return '';
-    const monthData = kids[0]?.attendance[selectedMonth];
-    const lessonCount = monthData?.length || 4;
-    const lessonLabels = Array.from({length: lessonCount}, (_, i) => (i+1) + '. alkalom');
+    
+    // Get dates for this group and month
+    const groupDates = (attendanceDates[g] || []).filter(d => {
+      // Filter by selected month number
+      const dateParts = d.split('.');
+      if (dateParts.length >= 2) {
+        const month = dateParts[1].replace(/^0/, '');
+        return month === selectedMonth.replace(/^0/, '');
+      }
+      return false;
+    }).sort();
+
+    if (groupDates.length === 0) {
+      return `
+        <div class="attendance-group">
+          <div class="att-group-title">${g}</div>
+          <div style="background:white;border:1px solid var(--border-lt);padding:1.5rem;color:var(--text-soft);font-size:13px;font-style:italic;">
+            Ebben a hónapban még nincs rögzített jelenlét. Kattints a "+ Dátum hozzáadása" gombra!
+          </div>
+        </div>`;
+    }
+
     return `
       <div class="attendance-group">
         <div class="att-group-title">${g}</div>
+        <div style="overflow-x:auto;">
         <table class="att-table">
           <thead><tr>
             <th>Név</th>
-            ${lessonLabels.map(l => `<th>${l}</th>`).join('')}
+            ${groupDates.map(d => `<th style="font-size:10px;">${d}</th>`).join('')}
             <th>Havi</th>
             <th>Összesített</th>
           </tr></thead>
           <tbody>${kids.map(c => {
-            const monthLessons = c.attendance[selectedMonth] || [];
-            const monthPresent = monthLessons.filter(Boolean).length;
-            const monthTotal = monthLessons.length;
-            let totalAll = 0, presentAll = 0;
-            Object.values(c.attendance).forEach(m => { totalAll += m.length; presentAll += m.filter(Boolean).length; });
-            const cells = monthLessons.slice(0, lessonCount).map((p, i) => 
-              `<td class="${p ? 'att-present' : 'att-absent'}" style="cursor:pointer;" onclick="toggleAttendance('${c.id}','${selectedMonth}',${i})">${p ? '✓' : '○'}</td>`
+            const childAtt = attendanceData[c.id] || {};
+            const monthPresent = groupDates.filter(d => childAtt[d]).length;
+            const monthTotal = groupDates.length;
+            const totalPresent = Object.values(childAtt).filter(Boolean).length;
+            const totalAll = Object.keys(childAtt).length;
+            const cells = groupDates.map(d =>
+              `<td class="${childAtt[d] ? 'att-present' : 'att-absent'}" style="cursor:pointer;" 
+                onclick="toggleAttendanceDate('${c.id}','${d}')">${childAtt[d] ? '✓' : '○'}</td>`
             ).join('');
-            const emptyPad = Array(Math.max(0, lessonCount - monthLessons.length)).fill(`<td style="color:var(--border);cursor:pointer;" onclick="toggleAttendance('${c.id}','${selectedMonth}',${monthLessons.length})">○</td>`).join('');
             const monthRate = monthTotal > 0 ? Math.round(monthPresent/monthTotal*100) : 0;
             const monthClass = monthRate >= 75 ? 'good' : monthRate >= 50 ? 'warn' : 'bad';
-            const totalRate = totalAll > 0 ? Math.round(presentAll/totalAll*100) : 0;
+            const totalRate = totalAll > 0 ? Math.round(totalPresent/totalAll*100) : 0;
             const totalClass = totalRate >= 75 ? 'good' : totalRate >= 50 ? 'warn' : 'bad';
-            return `<tr><td>${c.name}</td>${cells}${emptyPad}<td><span class="att-rate ${monthClass}">${monthPresent}/${monthTotal}</span></td><td><span class="att-rate ${totalClass}">${presentAll}/${totalAll} (${totalRate}%)</span></td></tr>`;
+            return `<tr><td>${c.name}</td>${cells}<td><span class="att-rate ${monthClass}">${monthPresent}/${monthTotal}</span></td><td><span class="att-rate ${totalClass}">${totalPresent}/${totalAll} (${totalRate}%)</span></td></tr>`;
           }).join('')}
           </tbody>
         </table>
+        </div>
       </div>`;
   }).join('');
 }
 
-// TOGGLE ATTENDANCE
-function toggleAttendance(childId, month, lessonIdx) {
+function toggleAttendanceDate(childId, date) {
   const child = children.find(c => c.id === childId);
   if (!child) return;
-  if (!child.attendance) child.attendance = {};
-  if (!child.attendance[month]) child.attendance[month] = [];
-  while (child.attendance[month].length <= lessonIdx) child.attendance[month].push(false);
-  child.attendance[month][lessonIdx] = !child.attendance[month][lessonIdx];
+  if (!attendanceData[childId]) attendanceData[childId] = {};
+  attendanceData[childId][date] = !attendanceData[childId][date];
   renderAttendance();
   renderHogos();
   showToast('Jelenlét frissítve!');
-  // Mentés Sheets-be
-  if (child.attendance[month][lessonIdx]) {
+  if (attendanceData[childId][date]) {
     apiCall('saveAttendance', 'POST', {
       childName: child.name,
       group: child.group,
-      date: month + '-' + (lessonIdx + 1)
+      date: date
     }).catch(e => console.error('Jelenlét mentési hiba:', e));
   }
 }
+
+function openAddAttendanceDate() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('attendanceDateInput').value = today;
+  document.getElementById('addDateModal').classList.add('show');
+}
+
+function addAttendanceDate() {
+  const dateInput = document.getElementById('attendanceDateInput').value;
+  const group = document.getElementById('attendanceGroupInput').value;
+  if (!dateInput) { showToast('Add meg a dátumot!'); return; }
+  
+  // Format date: YYYY-MM-DD → YYYY.MM.DD
+  const date = dateInput.replace(/-/g, '.');
+  
+  if (!attendanceDates[group]) attendanceDates[group] = [];
+  if (!attendanceDates[group].includes(date)) {
+    attendanceDates[group].push(date);
+  }
+  
+  closeModal('addDateModal');
+  renderAttendance();
+  showToast('Dátum hozzáadva: ' + date);
+}
+
+
 
 // HOGOS
 function renderHogos() {
