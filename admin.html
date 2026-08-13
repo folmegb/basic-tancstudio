@@ -892,8 +892,10 @@ function renderAttendance() {
             const monthTotal = monthLessons.length;
             let totalAll = 0, presentAll = 0;
             Object.values(c.attendance).forEach(m => { totalAll += m.length; presentAll += m.filter(Boolean).length; });
-            const cells = monthLessons.map(p => `<td class="${p ? 'att-present' : 'att-absent'}">${p ? '✓' : '○'}</td>`).join('');
-            const emptyPad = Array(lessonCount - monthLessons.length).fill('<td style="color:var(--border);">—</td>').join('');
+            const cells = monthLessons.slice(0, lessonCount).map((p, i) => 
+              `<td class="${p ? 'att-present' : 'att-absent'}" style="cursor:pointer;" onclick="toggleAttendance('${c.id}','${selectedMonth}',${i})">${p ? '✓' : '○'}</td>`
+            ).join('');
+            const emptyPad = Array(Math.max(0, lessonCount - monthLessons.length)).fill(`<td style="color:var(--border);cursor:pointer;" onclick="toggleAttendance('${c.id}','${selectedMonth}',${monthLessons.length})">○</td>`).join('');
             const monthRate = monthTotal > 0 ? Math.round(monthPresent/monthTotal*100) : 0;
             const monthClass = monthRate >= 75 ? 'good' : monthRate >= 50 ? 'warn' : 'bad';
             const totalRate = totalAll > 0 ? Math.round(presentAll/totalAll*100) : 0;
