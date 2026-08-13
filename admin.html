@@ -310,6 +310,20 @@ tr:hover td { background: var(--ivory); }
         <div class="section-title">Fizetések</div>
         <button class="btn btn-orange" onclick="sendPaymentReminders()" style="background:var(--orange);color:white;">📧 Emlékeztető küldése</button>
       </div>
+
+      <!-- HAVI ÖSSZESÍTŐ -->
+      <div style="background:white;border:1px solid var(--border-lt);padding:1.5rem;box-shadow:var(--shadow-sm);margin-bottom:2rem;">
+        <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+          <div>
+            <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);margin-bottom:6px;">Hónap</div>
+            <select id="paymentMonthFilter" onchange="renderPaymentSummary()" style="padding:10px 16px;border:1px solid var(--border);font-family:Inter,sans-serif;font-size:13px;background:var(--ivory);outline:none;cursor:pointer;">
+              ${months.map(m => `<option value="${m}">${m}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;" id="paymentSummaryCards"></div>
+      </div>
+
       <div id="paymentByGroup"></div>
     </div>
 
@@ -665,6 +679,7 @@ function renderAll() {
   renderChildren();
   renderStilusok();
   renderGala();
+  setTimeout(renderPaymentSummary, 100);
   renderPayment();
   renderAttendance();
   renderHogos();
@@ -758,6 +773,37 @@ function renderChildren() {
   }).join('');
 }
 
+// PAYMENT SUMMARY
+function renderPaymentSummary() {
+  const month = document.getElementById('paymentMonthFilter')?.value || months[0];
+  let totalExpected = 0, totalPaid = 0;
+
+  children.forEach(c => {
+    const fee = c.monthlyFee || 0;
+    totalExpected += fee;
+    if (c.payment && c.payment[month] === 'paid') totalPaid += fee;
+  });
+
+  const totalUnpaid = totalExpected - totalPaid;
+  const cards = document.getElementById('paymentSummaryCards');
+  if (!cards) return;
+
+  cards.innerHTML = `
+    <div style="background:var(--ivory);padding:1.25rem;border:1px solid var(--border-lt);">
+      <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);margin-bottom:6px;">Várható bevétel</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:var(--charcoal);">${formatFee(totalExpected)}</div>
+    </div>
+    <div style="background:var(--green-bg);padding:1.25rem;border:1px solid var(--green-mid);">
+      <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--green-dark);margin-bottom:6px;">Befolyt</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:var(--green-dark);">${formatFee(totalPaid)}</div>
+    </div>
+    <div style="background:var(--red-bg);padding:1.25rem;border:1px solid var(--red);">
+      <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--red);margin-bottom:6px;">Hátralék</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:var(--red);">${formatFee(totalUnpaid)}</div>
+    </div>
+  `;
+}
+
 // PAYMENT
 function renderPayment() {
   const el = document.getElementById('paymentByGroup');
@@ -803,6 +849,7 @@ function togglePayment(childId, month) {
   // Mentés Google Sheets-be
   apiCall('savePayment', 'POST', {
     childName: child.name,
+    childGroup: child.group,
     month: month,
     status: child.payment[month]
   }).catch(e => console.error('Fizetés mentési hiba:', e));
