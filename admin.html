@@ -619,9 +619,9 @@ async function saveChildToSheets(child) {
   }
 }
 
-async function deleteChildFromSheets(id) {
+async function deleteChildFromSheets(id, name) {
   try {
-    await apiCall('deleteChild', 'POST', { id });
+    await apiCall('deleteChild', 'POST', { id, name });
   } catch(e) {
     console.error('Sheets törlési hiba:', e);
   }
@@ -1058,7 +1058,7 @@ function deleteChild(id) {
   children = children.filter(c => c.id !== id);
   renderAll();
   showToast(child.name + ' törölve.');
-  deleteChildFromSheets(id);
+  deleteChildFromSheets(id, child.name);
 }
 
 // EMAIL REMINDER
