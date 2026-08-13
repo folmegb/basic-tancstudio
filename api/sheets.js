@@ -152,6 +152,30 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // GET ATTENDANCE
+    if (action === 'getAttendance') {
+      const { group } = req.query;
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: `${group}!A1:ZZ1000`,
+      });
+      const rows = response.data.values || [];
+      const dates = (rows[1] || []).slice(1); // Row 2 = dates
+      const childRows = rows.slice(2); // Row 3+ = children
+      
+      const attendance = {};
+      childRows.forEach(row => {
+        const childName = row[0];
+        if (!childName) return;
+        attendance[childName] = {};
+        dates.forEach((date, i) => {
+          if (date) attendance[childName][date] = row[i + 1] === 'X';
+        });
+      });
+      
+      return res.status(200).json({ dates, attendance });
+    }
+
     // GET PAYMENTS
     if (action === 'getPayments') {
       const response = await sheets.spreadsheets.values.get({
