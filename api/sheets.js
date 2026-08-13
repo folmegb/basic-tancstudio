@@ -96,7 +96,9 @@ export default async function handler(req, res) {
 
     // DELETE CHILD
     if (action === 'deleteChild' && req.method === 'POST') {
-      const { id } = req.body;
+      const { id, name } = req.body;
+      
+      // Delete from Gyerekek sheet
       const existing = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
         range: 'Gyerekek!A2:N1000',
@@ -109,6 +111,44 @@ export default async function handler(req, res) {
           range: `Gyerekek!A${rowIdx + 2}:N${rowIdx + 2}`,
         });
       }
+
+      // Delete from Fizetések sheet
+      if (name) {
+        const payExisting = await sheets.spreadsheets.values.get({
+          spreadsheetId: SHEET_ID,
+          range: 'Fizetések!A1:Z1000',
+        });
+        const payRows = payExisting.data.values || [];
+        const payRowIdx = payRows.findIndex((r, i) => i > 0 && r[0] === name);
+        if (payRowIdx !== -1) {
+          await sheets.spreadsheets.values.clear({
+            spreadsheetId: SHEET_ID,
+            range: `Fizetések!A${payRowIdx + 1}:Z${payRowIdx + 1}`,
+          });
+        }
+      }
+
+      // Delete from all attendance sheets
+      const attendanceSheets = ['Mesebalett', 'Közepesek', 'Péntekiek', 'Szombati nagyok'];
+      for (const sheet of attendanceSheets) {
+        try {
+          const attExisting = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${sheet}!A1:ZZ1000`,
+          });
+          const attRows = attExisting.data.values || [];
+          const attRowIdx = attRows.findIndex((r, i) => i > 1 && r[0] === name);
+          if (attRowIdx !== -1) {
+            await sheets.spreadsheets.values.clear({
+              spreadsheetId: SHEET_ID,
+              range: `${sheet}!A${attRowIdx + 1}:ZZ${attRowIdx + 1}`,
+            });
+          }
+        } catch(e) {
+          // Sheet might not exist, ignore
+        }
+      }
+
       return res.status(200).json({ success: true });
     }
 
