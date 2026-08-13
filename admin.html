@@ -317,7 +317,6 @@ tr:hover td { background: var(--ivory); }
           <div>
             <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);margin-bottom:6px;">Hónap</div>
             <select id="paymentMonthFilter" onchange="renderPaymentSummary()" style="padding:10px 16px;border:1px solid var(--border);font-family:Inter,sans-serif;font-size:13px;background:var(--ivory);outline:none;cursor:pointer;">
-              ${months.map(m => `<option value="${m}">${m}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -676,6 +675,11 @@ function renderAll() {
   updateDate();
   renderStats();
   initAttendanceFilter();
+  // Populate payment month filter
+  const pmf = document.getElementById('paymentMonthFilter');
+  if (pmf) {
+    pmf.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
+  }
   renderChildren();
   renderStilusok();
   renderGala();
