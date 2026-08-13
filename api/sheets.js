@@ -131,8 +131,9 @@ export default async function handler(req, res) {
       const rows = response.data.values || [];
       const headers = rows[0] || [];
       
-      // Find month column (header matches month like "09", "10" etc)
-      let monthCol = headers.indexOf(month);
+      // Find month column - strip dots from headers for comparison
+      const cleanHeaders = headers.map(h => h.toString().replace('.', '').trim());
+      let monthCol = cleanHeaders.indexOf(month.toString().trim());
       
       // If not found, add it
       if (monthCol === -1) {
@@ -149,14 +150,15 @@ export default async function handler(req, res) {
       // Find child row
       let childRow = rows.findIndex((r, i) => i > 0 && r[0] === childName);
       
-      // If not found, add child
+      // If not found, add child with group
       if (childRow === -1) {
         childRow = rows.length;
+        const { childGroup } = req.body;
         await sheets.spreadsheets.values.update({
           spreadsheetId: SHEET_ID,
-          range: `Fizetések!A${childRow + 1}`,
+          range: `Fizetések!A${childRow + 1}:B${childRow + 1}`,
           valueInputOption: 'RAW',
-          resource: { values: [[childName]] },
+          resource: { values: [[childName, childGroup || '']] },
         });
       }
 
