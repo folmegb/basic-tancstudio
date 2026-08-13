@@ -130,18 +130,43 @@ export default async function handler(req, res) {
       });
       const rows = response.data.values || [];
       const headers = rows[0] || [];
-      const monthCol = headers.indexOf(month);
-      const childRow = rows.findIndex((r, i) => i > 0 && r[0] === childName);
-
-      if (monthCol !== -1 && childRow !== -1) {
+      
+      // Find month column (header matches month like "09", "10" etc)
+      let monthCol = headers.indexOf(month);
+      
+      // If not found, add it
+      if (monthCol === -1) {
+        monthCol = headers.length;
         const col = String.fromCharCode(65 + monthCol);
         await sheets.spreadsheets.values.update({
           spreadsheetId: SHEET_ID,
-          range: `Fizetések!${col}${childRow + 1}`,
+          range: `Fizetések!${col}1`,
           valueInputOption: 'RAW',
-          resource: { values: [[status === 'paid' ? 'X' : '']] },
+          resource: { values: [[month]] },
         });
       }
+
+      // Find child row
+      let childRow = rows.findIndex((r, i) => i > 0 && r[0] === childName);
+      
+      // If not found, add child
+      if (childRow === -1) {
+        childRow = rows.length;
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SHEET_ID,
+          range: `Fizetések!A${childRow + 1}`,
+          valueInputOption: 'RAW',
+          resource: { values: [[childName]] },
+        });
+      }
+
+      const col = String.fromCharCode(65 + monthCol);
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `Fizetések!${col}${childRow + 1}`,
+        valueInputOption: 'RAW',
+        resource: { values: [[status === 'paid' ? 'X' : '']] },
+      });
       return res.status(200).json({ success: true });
     }
 
