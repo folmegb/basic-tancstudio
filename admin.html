@@ -908,6 +908,27 @@ function renderAttendance() {
   }).join('');
 }
 
+// TOGGLE ATTENDANCE
+function toggleAttendance(childId, month, lessonIdx) {
+  const child = children.find(c => c.id === childId);
+  if (!child) return;
+  if (!child.attendance) child.attendance = {};
+  if (!child.attendance[month]) child.attendance[month] = [];
+  while (child.attendance[month].length <= lessonIdx) child.attendance[month].push(false);
+  child.attendance[month][lessonIdx] = !child.attendance[month][lessonIdx];
+  renderAttendance();
+  renderHogos();
+  showToast('Jelenlét frissítve!');
+  // Mentés Sheets-be
+  if (child.attendance[month][lessonIdx]) {
+    apiCall('saveAttendance', 'POST', {
+      childName: child.name,
+      group: child.group,
+      date: month + '-' + (lessonIdx + 1)
+    }).catch(e => console.error('Jelenlét mentési hiba:', e));
+  }
+}
+
 // HOGOS
 function renderHogos() {
   const hogos = getHogos();
