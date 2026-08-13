@@ -780,10 +780,8 @@ function renderPayment() {
               </td>
               ${months.map(m => {
                 const status = c.payment ? (c.payment[m] || 'unpaid') : 'unpaid';
-                const fee = calcFee(c, m);
                 const icon = status === 'paid' ? '✓' : '✗';
-                const feeLabel = `<div style="font-size:10px;color:var(--text-soft);margin-top:3px;">${formatFee(fee)}</div>`;
-                return `<td><button class="pay-cell ${status}" onclick="togglePayment('${c.id}','${m}')">${icon}</button>${feeLabel}</td>`;
+                return `<td><button class="pay-cell ${status}" onclick="togglePayment('${c.id}','${m}')">${icon}</button></td>`;
               }).join('')}
             </tr>`).join('')}
           </tbody>
