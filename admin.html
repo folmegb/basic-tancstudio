@@ -793,7 +793,7 @@ function renderDashUnpaid() {
 function renderChildren() {
   const el = document.getElementById('childrenByGroup');
   el.innerHTML = groups.map(g => {
-    const kids = children.filter(c => c.group === g);
+    const kids = children.filter(c => c.group === g).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
     if (kids.length === 0) return '';
     return `
       <div class="group-block">
@@ -866,7 +866,7 @@ function renderPaymentSummary() {
 function renderPayment() {
   const el = document.getElementById('paymentByGroup');
   el.innerHTML = groups.map(g => {
-    const kids = children.filter(c => c.group === g);
+    const kids = children.filter(c => c.group === g).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
     if (kids.length === 0) return '';
     return `
       <div class="group-block">
@@ -932,7 +932,7 @@ function renderAttendance() {
   const selectedMonth = document.getElementById('attendanceMonthFilter')?.value || months[0];
   const el = document.getElementById('attendanceByGroup');
   el.innerHTML = groups.map(g => {
-    const kids = children.filter(c => c.group === g);
+    const kids = children.filter(c => c.group === g).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
     if (kids.length === 0) return '';
     
     // Get dates for this group and month
@@ -950,8 +950,11 @@ function renderAttendance() {
       return `
         <div class="attendance-group">
           <div class="att-group-title">${g}</div>
-          <div style="background:white;border:1px solid var(--border-lt);padding:1.5rem;color:var(--text-soft);font-size:13px;font-style:italic;">
-            Ebben a hónapban még nincs rögzített jelenlét. Kattints a "+ Dátum hozzáadása" gombra!
+          <div style="background:white;border:1px solid var(--border-lt);box-shadow:var(--shadow-sm);overflow:hidden;">
+            <table class="att-table">
+              <thead><tr><th>Név</th><th style="color:var(--text-soft);font-style:italic;">Még nincs rögzített jelenlét ebben a hónapban</th></tr></thead>
+              <tbody>${kids.map(c => `<tr><td>${c.name}</td><td></td></tr>`).join('')}</tbody>
+            </table>
           </div>
         </div>`;
     }
@@ -1216,7 +1219,7 @@ const STYLES = ["Mesebalett", "Jazz", "Kortárs", "Versenyzés"];
 function renderStilusok() {
   const el = document.getElementById('stilusokTable');
   el.innerHTML = groups.map(g => {
-    const kids = children.filter(c => c.group === g);
+    const kids = children.filter(c => c.group === g).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
     if (kids.length === 0) return '';
     return `
       <div class="group-block">
