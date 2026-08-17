@@ -154,7 +154,7 @@ body { font-family: 'Inter', sans-serif; background: var(--ivory); color: var(--
 </div>
 
 <div class="main" id="bookingMain">
-  <div class="page-title">Gála <em>2025</em> — Jegyfoglalás</div>
+  <div class="page-title">Gála <em>Jegyfoglalás</em></div>
   <div class="page-sub">Kattints a kívánt székre. Több széket is foglalhatsz egyszerre.</div>
 
   <div class="legend">
@@ -526,6 +526,13 @@ function submitBooking() {
 
   document.getElementById('successSeats').innerHTML = `<strong>${name}</strong><br>${seatLabels.join('<br>')}`;
   document.getElementById('successOverlay').classList.add('show');
+
+  // Mentés Google Sheets-be
+  fetch('/api/sheets?action=saveGalaBooking', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ childName: name, email, seats: seatLabels })
+  }).catch(e => console.error('Sheets mentési hiba:', e));
   selectedSeats.clear();
   updatePanel();
   document.getElementById('bookingForm').classList.remove('show');
