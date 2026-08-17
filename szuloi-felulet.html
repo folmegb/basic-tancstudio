@@ -460,13 +460,17 @@ async function renderPayment(child) {
   const fee = child.monthlyFee || 0;
   const feeStr = fee > 0 ? fee.toLocaleString('hu-HU') + ' Ft' : '—';
 
+  // Show fee at top
+  document.getElementById('paymentNote').textContent = fee > 0
+    ? `Havi díj: ${feeStr}`
+    : '';
+
   document.getElementById('paymentHistory').innerHTML = months.map(m => {
     const status = payments[m] || 'unpaid';
     const isPaid = status === 'paid';
     return `
       <div class="payment-row">
         <span class="payment-row-month">${monthNames[m]}</span>
-        <span style="font-size:13px;color:var(--text-soft);">${feeStr}</span>
         <span class="payment-row-status ${status}">${isPaid ? '✓ Fizetve' : '✗ Nem fizetve'}</span>
       </div>`;
   }).join('');
