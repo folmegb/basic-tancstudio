@@ -1363,6 +1363,26 @@ function renderGala() {
   document.getElementById('galaUnpaid').textContent = formatFee(unpaidAmount);
 }
 
+function deleteGalaSeat(childName, seat) {
+  if (!confirm(`Töröljük ezt a széket: ${seat}?`)) return;
+  
+  // Remove from local data
+  galaBookings.forEach(b => {
+    if (b.childName === childName) {
+      b.seats = b.seats.filter(s => s !== seat);
+    }
+  });
+  // Remove entries with no seats
+  galaBookings = galaBookings.filter(b => b.seats.length > 0);
+  
+  renderGala();
+  showToast('Szék törölve: ' + seat);
+
+  // Törlés Sheets-ből is
+  apiCall('deleteGalaSeat', 'POST', { childName, seat })
+    .catch(e => console.error('Gála szék törlési hiba:', e));
+}
+
 function toggleGalaPaid(childName) {
   const booking = galaBookings.find(b => b.childName === childName);
   if (!booking) return;
