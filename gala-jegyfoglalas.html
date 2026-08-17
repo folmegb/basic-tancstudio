@@ -589,21 +589,20 @@ async function loadBookedSeats() {
   }
 }
 
+
+}
+
 function checkDate() {
   const now = new Date();
   const year = now.getFullYear();
   const open  = new Date(year, 4, 1);
   const close = new Date(year, 4, 31, 23, 59);
-  if (now < open) {
-    document.getElementById('closedSoonText').textContent = 'Hamarosan...';
-    document.getElementById('closedSoon').style.display = 'flex';
-  } else if (now > close) {
-    document.getElementById('closedOver').style.display = 'flex';
-  } else {
+  if (now >= open && now <= close) {
     document.getElementById('bookingMain').style.display = 'block';
+  } else {
+    document.getElementById('closedSoon').style.display = 'flex';
   }
 }
-
 checkDate();
 renderGround();
 renderGroundLabels();
