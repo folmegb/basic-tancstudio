@@ -176,6 +176,28 @@ export default async function handler(req, res) {
       return res.status(200).json({ dates, attendance });
     }
 
+    // GET CHILD PAYMENTS (for parent portal)
+    if (action === 'getChildPayments') {
+      const { childName } = req.query;
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: 'Fizetések!A1:Z1000',
+      });
+      const rows = response.data.values || [];
+      const headers = rows[0] || [];
+      const childRow = rows.find((r, i) => i > 0 && r[0] === childName);
+      
+      const payments = {};
+      if (childRow) {
+        headers.forEach((h, i) => {
+          if (i >= 2 && h) {
+            payments[h.replace('.', '').trim()] = childRow[i] === 'X' ? 'paid' : 'unpaid';
+          }
+        });
+      }
+      return res.status(200).json({ payments });
+    }
+
     // GET PAYMENTS
     if (action === 'getPayments') {
       const response = await sheets.spreadsheets.values.get({
