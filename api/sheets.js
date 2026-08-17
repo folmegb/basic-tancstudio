@@ -282,6 +282,25 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // GET GALA BOOKINGS
+    if (action === 'getGalaBookings') {
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: 'Gála foglalások!A2:F1000',
+      });
+      const rows = response.data.values || [];
+      const bookings = rows.filter(r => r[1]).map(r => ({
+        date: r[0] || '',
+        childName: r[1] || '',
+        email: r[2] || '',
+        seats: r[3] ? r[3].split(', ') : [],
+        count: parseInt(r[4]) || 0,
+        level: r[5] || '',
+        paid: false
+      }));
+      return res.status(200).json({ bookings });
+    }
+
     // SAVE GALA BOOKING
     if (action === 'saveGalaBooking' && req.method === 'POST') {
       const { childName, email, seats } = req.body;
