@@ -620,6 +620,18 @@ async function refreshFromSheets() {
   await loadChildrenFromSheets();
 }
 
+async function loadGalaBookingsFromSheets() {
+  try {
+    const data = await apiCall('getGalaBookings');
+    if (data.bookings) {
+      galaBookings = data.bookings;
+      renderGala();
+    }
+  } catch(e) {
+    console.error('Gála foglalások betöltési hiba:', e);
+  }
+}
+
 async function loadAttendanceFromSheets() {
   for (const group of groups) {
     try {
@@ -702,6 +714,7 @@ function doLogin() {
     renderAll();
     loadChildrenFromSheets();
     loadAttendanceFromSheets();
+    loadGalaBookingsFromSheets();
   } else {
     document.getElementById('adminPass').classList.add('error');
     document.getElementById('loginError').classList.add('show');
