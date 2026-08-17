@@ -282,6 +282,54 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // DELETE GALA SEAT
+    if (action === 'deleteGalaSeat' && req.method === 'POST') {
+      const { childName, seat } = req.body;
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: 'Gála foglalások!A2:F1000',
+      });
+      const rows = response.data.values || [];
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i][1] === childName && rows[i][3] && rows[i][3].includes(seat)) {
+          const seats = rows[i][3].split(', ').filter(s => s.trim() !== seat);
+          if (seats.length === 0) {
+            // Clear entire row
+            await sheets.spreadsheets.values.clear({
+              spreadsheetId: SHEET_ID,
+              range: `Gála foglalások!A${i + 2}:F${i + 2}`,
+            });
+          } else {
+            // Update seats
+            await sheets.spreadsheets.values.update({
+              spreadsheetId: SHEET_ID,
+              range: `Gála foglalások!D${i + 2}:E${i + 2}`,
+              valueInputOption: 'RAW',
+              resource: { values: [[seats.join(', '), seats.length]] },
+            });
+          }
+          break;
+        }
+      }
+      return res.status(200).json({ success: true });
+    }
+
+    // GET BOOKED SEATS
+    if (action === 'getBookedSeats') {
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: 'Gála foglalások!D2:D1000',
+      });
+      const rows = response.data.values || [];
+      const bookedSeats = [];
+      rows.forEach(row => {
+        if (row[0]) {
+          row[0].split(', ').forEach(seat => bookedSeats.push(seat.trim()));
+        }
+      });
+      return res.status(200).json({ bookedSeats });
+    }
+
     // GET GALA BOOKINGS
     if (action === 'getGalaBookings') {
       const response = await sheets.spreadsheets.values.get({
