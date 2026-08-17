@@ -140,8 +140,8 @@ body { font-family: 'Inter', sans-serif; background: var(--ivory); color: var(--
 <div class="closed-wrap" id="closedSoon" style="display:none;">
   <div class="closed-card">
     <div style="font-size:3rem;margin-bottom:1.5rem;">🎭</div>
-    <div class="closed-title">Gála <em>2025</em></div>
-    <p class="closed-text">A jegyfoglalás május 1-jén nyílik meg. Addig türelmetlenül várjuk!</p>
+    <div class="closed-title">Gála <em>Jegyfoglalás</em></div>
+    <p class="closed-text" id="closedSoonText">A jegyfoglalás hamarosan nyílik meg.</p>
   </div>
 </div>
 
@@ -595,6 +595,7 @@ function checkDate() {
   const open  = new Date(year, 4, 1);
   const close = new Date(year, 4, 31, 23, 59);
   if (now < open) {
+    document.getElementById('closedSoonText').textContent = 'Hamarosan...';
     document.getElementById('closedSoon').style.display = 'flex';
   } else if (now > close) {
     document.getElementById('closedOver').style.display = 'flex';
