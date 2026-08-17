@@ -457,13 +457,12 @@ async function renderPayment(child) {
     console.error('Fizetés betöltési hiba:', e);
   }
 
-  const fee = child.monthlyFee || 0;
-  const feeStr = fee > 0 ? fee.toLocaleString('hu-HU') + ' Ft' : '—';
+  // Get fee from child data or from Sheets children list
+  const fee = parseInt(child.monthlyFee) || 0;
+  const feeStr = fee > 0 ? fee.toLocaleString('hu-HU') + ' Ft' : 'Nincs megadva';
 
   // Show fee at top
-  document.getElementById('paymentNote').textContent = fee > 0
-    ? `Havi díj: ${feeStr}`
-    : '';
+  document.getElementById('paymentNote').textContent = `Havi díj: ${feeStr}`;
 
   document.getElementById('paymentHistory').innerHTML = months.map(m => {
     const status = payments[m] || 'unpaid';
