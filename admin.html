@@ -1336,7 +1336,10 @@ function renderGala() {
     if (r.paid) paidAmount += amount;
 
     const seatsHtml = count > 0
-      ? r.seats.map(s => `<div style="font-size:11px;color:var(--text-soft);">${s}</div>`).join('')
+      ? r.seats.map(s => `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+              <span style="font-size:11px;color:var(--text-soft);">${s}</span>
+              <button onclick="deleteGalaSeat('${r.name}','${s}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1;" title="Szék törlése">✕</button>
+            </div>`).join('')
       : '<span style="font-size:12px;color:var(--border);font-style:italic;">Nincs foglalás</span>';
 
     const statusBtn = count > 0 ? `
