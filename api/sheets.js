@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       const rowIdx = rows.findIndex(r => r[2] === c.id);
       const rowData = [[
         c.name, c.pin, c.id, c.group, c.birthdate,
-        c.parentName, c.parentPhone, c.parentEmail, c.billing,
+        c.parentName, c.parentPhone, c.parentEmail, c.billing || c.billingAddress || '',
         c.childPhone, c.childEmail, c.monthlyFee,
         (c.styles || []).join(','),
         c.profileComplete ? 'Igen' : 'Nem'
