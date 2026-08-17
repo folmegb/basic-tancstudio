@@ -88,7 +88,7 @@ body { font-family: 'Inter', sans-serif; background: var(--ivory); color: var(--
 
 .payment-history { border-top: 1px solid var(--border-lt); padding-top: 1rem; }
 .payment-history-title { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-soft); margin-bottom: 0.75rem; }
-.payment-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-lt); }
+.payment-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 10px 0; border-bottom: 1px solid var(--border-lt); }
 .payment-row:last-child { border-bottom: none; }
 .payment-row-month { font-size: 13px; color: var(--text-mid); }
 .payment-row-status { font-size: 11px; font-weight: 500; }
@@ -386,51 +386,106 @@ function showDashboard(child) {
   renderProfile(child);
 }
 
-function renderAttendance(child) {
+const monthNames = {
+  "09": "Szeptember", "10": "Október", "11": "November", "12": "December",
+  "01": "Január", "02": "Február", "03": "Március", "04": "Április", "05": "Május"
+};
+
+async function renderAttendance(child) {
   const list = document.getElementById('attendanceList');
-  list.innerHTML = child.attendance.map(m => {
-    const present = m.lessons.filter(l => l.present).length;
-    const total = m.lessons.length;
-    const scoreClass = present === total ? 'good' : present >= total * 0.75 ? 'good' : 'warn';
-    return `
-      <div class="card">
-        <div class="card-body">
-          <div class="month-name">
-            ${m.month}
-            <span class="month-score ${scoreClass}">${present}/${total} alkalom</span>
+  list.innerHTML = '<div style="padding:1rem;color:var(--text-soft);font-style:italic;">Betöltés...</div>';
+
+  try {
+    const resp = await fetch(`/api/sheets?action=getAttendance&group=${encodeURIComponent(child.group)}`);
+    const data = await resp.json();
+
+    if (!data.dates || data.dates.length === 0) {
+      list.innerHTML = '<div style="padding:1rem;color:var(--text-soft);font-style:italic;">Még nincs rögzített jelenlét.</div>';
+      return;
+    }
+
+    // Group dates by month
+    const byMonth = {};
+    data.dates.forEach(date => {
+      if (!date) return;
+      const parts = date.split('.');
+      const month = parts[1] ? parts[1].trim().padStart(2, '0') : '??';
+      if (!byMonth[month]) byMonth[month] = [];
+      byMonth[month].push(date);
+    });
+
+    const childAtt = data.attendance[child.name] || {};
+
+    list.innerHTML = Object.entries(byMonth).map(([month, dates]) => {
+      const present = dates.filter(d => childAtt[d]).length;
+      const total = dates.length;
+      const scoreClass = present >= total * 0.75 ? 'good' : present >= total * 0.5 ? 'warn' : 'bad';
+      return `
+        <div class="card">
+          <div class="card-body">
+            <div class="month-name">
+              ${monthNames[month] || month}
+              <span class="month-score ${scoreClass}">${present}/${total} alkalom</span>
+            </div>
+            <div class="attendance-list">
+              ${dates.map(d => `
+                <div class="attendance-item">
+                  <span class="att-icon">${childAtt[d] ? '✅' : '○'}</span>
+                  <span class="att-date">${d}</span>
+                  <span class="att-status ${childAtt[d] ? 'present' : 'absent'}">${childAtt[d] ? 'Jelen volt' : 'Hiányzott'}</span>
+                </div>`).join('')}
+            </div>
           </div>
-          <div class="attendance-list">
-            ${m.lessons.map(l => `
-              <div class="attendance-item">
-                <span class="att-icon">${l.present ? '✅' : '○'}</span>
-                <span class="att-date">${l.date}</span>
-                <span class="att-status ${l.present ? 'present' : 'absent'}">${l.present ? 'Jelen volt' : 'Hiányzott'}</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>`;
-  }).join('');
+        </div>`;
+    }).join('');
+
+  } catch(e) {
+    console.error('Jelenlét betöltési hiba:', e);
+    list.innerHTML = '<div style="padding:1rem;color:var(--red);">Jelenlét betöltése sikertelen.</div>';
+  }
 }
 
-function renderPayment(child) {
-  const now = new Date();
-  const monthName = now.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long' });
-  const isPaid = child.payment.current === 'paid';
+const months = ["09", "10", "11", "12", "01", "02", "03", "04", "05"];
+const monthNames = {
+  "09": "Szeptember", "10": "Október", "11": "November", "12": "December",
+  "01": "Január", "02": "Február", "03": "Március", "04": "Április", "05": "Május"
+};
 
+async function renderPayment(child) {
+  // Load payments from Sheets
+  let payments = {};
+  try {
+    const resp = await fetch(`/api/sheets?action=getChildPayments&childName=${encodeURIComponent(child.name)}`);
+    const data = await resp.json();
+    payments = data.payments || {};
+  } catch(e) {
+    console.error('Fizetés betöltési hiba:', e);
+  }
+
+  const fee = child.monthlyFee || 0;
+  const feeStr = fee > 0 ? fee.toLocaleString('hu-HU') + ' Ft' : '—';
+
+  document.getElementById('paymentHistory').innerHTML = months.map(m => {
+    const status = payments[m] || 'unpaid';
+    const isPaid = status === 'paid';
+    return `
+      <div class="payment-row">
+        <span class="payment-row-month">${monthNames[m]}</span>
+        <span style="font-size:13px;color:var(--text-soft);">${feeStr}</span>
+        <span class="payment-row-status ${status}">${isPaid ? '✓ Fizetve' : '✗ Nem fizetve'}</span>
+      </div>`;
+  }).join('');
+
+  // Current month summary
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  const currentStatus = payments[currentMonth] || 'unpaid';
+  const isPaid = currentStatus === 'paid';
   document.getElementById('currentPaymentBadge').textContent = isPaid ? '✓ Fizetve' : '✗ Nem fizetve';
   document.getElementById('currentPaymentBadge').className = 'payment-badge ' + (isPaid ? 'paid' : 'unpaid');
-  document.getElementById('currentPaymentMonth').textContent = monthName;
+  document.getElementById('currentPaymentMonth').textContent = monthNames[currentMonth] || '';
   document.getElementById('paymentNote').textContent = isPaid
     ? 'A havi díj beérkezett, köszönjük!'
     : 'A havi díj még nem érkezett be. Kérjük rendezd mielőbb!';
-
-  document.getElementById('paymentHistory').innerHTML = child.payment.history.map(h => `
-    <div class="payment-row">
-      <span class="payment-row-month">${h.month}</span>
-      <span class="payment-row-status ${h.status}">${h.status === 'paid' ? '✓ Fizetve' : '✗ Nem fizetve'}</span>
-    </div>
-  `).join('');
 }
 
 function renderProfile(child) {
@@ -468,8 +523,8 @@ function toggleEdit() {
   const saveBtn = document.getElementById('saveBtn');
 
   if (editMode) {
-    // Switch to inputs
-    grid.querySelectorAll('.data-value').forEach(span => {
+    // Switch to inputs - only elements with data-key attribute
+    grid.querySelectorAll('.data-value[data-key]').forEach(span => {
       const key = span.dataset.key;
       const val = currentChild[key] || '';
       const input = document.createElement('input');
