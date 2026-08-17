@@ -186,7 +186,31 @@ body { font-family: 'Inter', sans-serif; background: var(--ivory); color: var(--
 
     <!-- JELENLÉT -->
     <div class="tab-content active" id="tab-attendance">
+      <div style="margin-bottom:1.5rem;">
+        <button onclick="openAbsenceModal()" style="background:var(--green);color:white;border:none;padding:12px 24px;font-size:12px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:Inter,sans-serif;box-shadow:0 4px 16px rgba(61,122,104,0.3);">
+          + Hiányzás bejelentése
+        </button>
+      </div>
       <div class="attendance-months" id="attendanceList"></div>
+    </div>
+
+    <!-- HIÁNYZÁS MODAL -->
+    <div id="absenceOverlay" style="display:none;position:fixed;inset:0;background:rgba(30,28,26,0.6);z-index:200;align-items:center;justify-content:center;padding:1.5rem;">
+      <div style="background:white;max-width:400px;width:100%;padding:2.5rem 2rem;box-shadow:0 24px 64px rgba(30,28,26,0.2);">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300;color:var(--charcoal);margin-bottom:1.5rem;">Hiányzás bejelentése</div>
+        <div style="margin-bottom:1.25rem;">
+          <label style="display:block;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);margin-bottom:8px;">Hiányzás dátuma *</label>
+          <input type="date" id="absenceDate" style="width:100%;padding:13px 14px;background:var(--ivory);border:1px solid var(--border);font-size:14px;font-family:Inter,sans-serif;outline:none;">
+        </div>
+        <div style="margin-bottom:1.5rem;">
+          <label style="display:block;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-soft);margin-bottom:8px;">Megjegyzés (nem kötelező)</label>
+          <textarea id="absenceMessage" placeholder="pl. Beteg, láza van..." style="width:100%;padding:13px 14px;background:var(--ivory);border:1px solid var(--border);font-size:14px;font-family:Inter,sans-serif;outline:none;min-height:80px;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:1rem;">
+          <button onclick="closeAbsenceModal()" style="flex:1;padding:13px;background:white;color:var(--text-mid);border:1px solid var(--border);font-size:12px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:Inter,sans-serif;">Mégsem</button>
+          <button onclick="submitAbsence()" style="flex:1;padding:13px;background:var(--green);color:white;border:none;font-size:12px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:Inter,sans-serif;">Bejelentés</button>
+        </div>
+      </div>
     </div>
 
     <!-- FIZETÉS -->
@@ -337,6 +361,40 @@ async function saveProfileToSheets(child) {
     });
   } catch(e) {
     console.error('Sheets mentési hiba:', e);
+  }
+}
+
+function openAbsenceModal() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('absenceDate').value = today;
+  document.getElementById('absenceMessage').value = '';
+  document.getElementById('absenceOverlay').style.display = 'flex';
+}
+
+function closeAbsenceModal() {
+  document.getElementById('absenceOverlay').style.display = 'none';
+}
+
+async function submitAbsence() {
+  const date = document.getElementById('absenceDate').value;
+  const message = document.getElementById('absenceMessage').value;
+  if (!date) { alert('Add meg a hiányzás dátumát!'); return; }
+
+  try {
+    await fetch('/api/sheets?action=saveAbsence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        childName: currentChild.name,
+        group: currentChild.group,
+        date: date.replace(/-/g, '.'),
+        message
+      })
+    });
+    closeAbsenceModal();
+    showToast('Hiányzás bejelentve! ✓');
+  } catch(e) {
+    alert('Hiba történt, próbáld újra!');
   }
 }
 
