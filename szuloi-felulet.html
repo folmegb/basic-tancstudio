@@ -319,7 +319,7 @@ async function loadChildFromSheets(pin) {
     const data = await fetch(`${API_URL}?action=getChildren`);
     const json = await data.json();
     if (json.children) {
-      return json.children.find(c => c.pin === pin) || null;
+      return json.children.find(c => String(c.pin) === String(pin)) || null;
     }
   } catch(e) {
     console.error('Sheets betöltési hiba:', e);
@@ -385,11 +385,6 @@ function showDashboard(child) {
   renderPayment(child);
   renderProfile(child);
 }
-
-const monthNames = {
-  "09": "Szeptember", "10": "Október", "11": "November", "12": "December",
-  "01": "Január", "02": "Február", "03": "Március", "04": "Április", "05": "Május"
-};
 
 async function renderAttendance(child) {
   const list = document.getElementById('attendanceList');
