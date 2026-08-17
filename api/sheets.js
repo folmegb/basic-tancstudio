@@ -304,6 +304,55 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // SAVE ABSENCE
+    if (action === 'saveAbsence' && req.method === 'POST') {
+      const { childName, group, date, message } = req.body;
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SHEET_ID,
+        range: 'Hiányzások!A2',
+        valueInputOption: 'RAW',
+        resource: { values: [[
+          new Date().toLocaleString('hu-HU'),
+          childName,
+          group,
+          date,
+          message || '',
+          'Új'
+        ]] },
+      });
+      return res.status(200).json({ success: true });
+    }
+
+    // GET ABSENCES
+    if (action === 'getAbsences') {
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: 'Hiányzások!A2:F1000',
+      });
+      const rows = response.data.values || [];
+      const absences = rows.filter(r => r[1]).map(r => ({
+        reportedAt: r[0] || '',
+        childName: r[1] || '',
+        group: r[2] || '',
+        date: r[3] || '',
+        message: r[4] || '',
+        status: r[5] || 'Új'
+      }));
+      return res.status(200).json({ absences });
+    }
+
+    // UPDATE ABSENCE STATUS
+    if (action === 'updateAbsenceStatus' && req.method === 'POST') {
+      const { rowIndex, status } = req.body;
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `Hiányzások!F${rowIndex + 2}`,
+        valueInputOption: 'RAW',
+        resource: { values: [[status]] },
+      });
+      return res.status(200).json({ success: true });
+    }
+
     // DELETE GALA SEAT
     if (action === 'deleteGalaSeat' && req.method === 'POST') {
       const { childName, seat } = req.body;
