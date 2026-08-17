@@ -418,35 +418,22 @@ export default async function handler(req, res) {
 
     // UPLOAD IMAGE TO CLOUDINARY
     if (action === 'uploadImage' && req.method === 'POST') {
-      const { imageData, folder } = req.body;
-      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-      const apiKey = process.env.CLOUDINARY_API_KEY;
-      const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-      const crypto = require('crypto');
-      const timestamp = Math.round(Date.now() / 1000);
-      const signature = crypto
-        .createHash('sha1')
-        .update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`)
-        .digest('hex');
-
-      const formData = new URLSearchParams();
-      formData.append('file', imageData);
-      formData.append('api_key', apiKey);
-      formData.append('timestamp', timestamp);
-      formData.append('signature', signature);
-      formData.append('folder', folder || 'basic-tancstudio');
-
-      const uploadResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: 'POST',
-        body: formData
+      const { v2: cloudinary } = require('cloudinary');
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
       });
-      const uploadData = await uploadResp.json();
-      
-      if (uploadData.secure_url) {
-        return res.status(200).json({ url: uploadData.secure_url, publicId: uploadData.public_id });
+
+      const { imageData, folder } = req.body;
+      const uploadResult = await cloudinary.uploader.upload(imageData, {
+        folder: folder || 'basic-tancstudio',
+      });
+
+      if (uploadResult.secure_url) {
+        return res.status(200).json({ url: uploadResult.secure_url, publicId: uploadResult.public_id });
       } else {
-        return res.status(500).json({ error: 'Upload failed', details: uploadData });
+        return res.status(500).json({ error: 'Upload failed' });
       }
     }
 
