@@ -1,4 +1,5 @@
 const { google } = require('googleapis');
+const fetch = globalThis.fetch || require('node-fetch');
 
 const SHEET_ID = '1I283wgYhF5L7FxF4hLyWwCe0kE1FHB1puNaPk_QeuyE';
 
@@ -383,6 +384,70 @@ export default async function handler(req, res) {
         }
       }
       return res.status(200).json({ success: true });
+    }
+
+    // SAVE SITE DATA (teachers, ages, gallery)
+    if (action === 'saveSiteData' && req.method === 'POST') {
+      const { key, value } = req.body;
+      // Save to a dedicated sheet or use a simple approach
+      // We'll use the Gyerekek sheet's last rows for site config
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `Weboldal!A1:B1`,
+        valueInputOption: 'RAW',
+        resource: { values: [[key, JSON.stringify(value)]] },
+      });
+      return res.status(200).json({ success: true });
+    }
+
+    // GET SITE DATA
+    if (action === 'getSiteData') {
+      try {
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId: SHEET_ID,
+          range: 'Weboldal!A1:B100',
+        });
+        const rows = response.data.values || [];
+        const data = {};
+        rows.forEach(r => { if (r[0] && r[1]) { try { data[r[0]] = JSON.parse(r[1]); } catch(e) {} } });
+        return res.status(200).json({ data });
+      } catch(e) {
+        return res.status(200).json({ data: {} });
+      }
+    }
+
+    // UPLOAD IMAGE TO CLOUDINARY
+    if (action === 'uploadImage' && req.method === 'POST') {
+      const { imageData, folder } = req.body;
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+      const apiKey = process.env.CLOUDINARY_API_KEY;
+      const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+      const crypto = require('crypto');
+      const timestamp = Math.round(Date.now() / 1000);
+      const signature = crypto
+        .createHash('sha1')
+        .update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`)
+        .digest('hex');
+
+      const formData = new URLSearchParams();
+      formData.append('file', imageData);
+      formData.append('api_key', apiKey);
+      formData.append('timestamp', timestamp);
+      formData.append('signature', signature);
+      formData.append('folder', folder || 'basic-tancstudio');
+
+      const uploadResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const uploadData = await uploadResp.json();
+      
+      if (uploadData.secure_url) {
+        return res.status(200).json({ url: uploadData.secure_url, publicId: uploadData.public_id });
+      } else {
+        return res.status(500).json({ error: 'Upload failed', details: uploadData });
+      }
     }
 
     // GET BOOKED SEATS
