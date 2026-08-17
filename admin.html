@@ -236,6 +236,9 @@ tr:hover td { background: var(--ivory); }
     <div class="sidebar-item" onclick="showSection('hogos')">
       <span class="sidebar-icon">⚠️</span> Lógósok
     </div>
+    <div class="sidebar-item" onclick="showSection('hianyok')">
+      <span class="sidebar-icon">🤒</span> Hiányzások
+    </div>
     <div class="sidebar-item" onclick="showSection('stilusok')">
       <span class="sidebar-icon">💃</span> Stílusok
     </div>
@@ -376,6 +379,15 @@ tr:hover td { background: var(--ivory); }
       </div>
       <p style="font-size:13px;color:var(--text-soft);margin-bottom:1.5rem;">Pipáld be gyerekenként melyik táncstílusokat tanulja. A szülői felületen is megjelenik.</p>
       <div id="stilusokTable"></div>
+    </div>
+
+    <!-- HIÁNYZÁSOK -->
+    <div id="section-hianyok" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Hiányzások</div>
+        <button class="btn btn-outline" onclick="loadAbsences()">🔄 Frissítés</button>
+      </div>
+      <div id="absenceList"></div>
     </div>
 
     <!-- GÁLA -->
@@ -715,6 +727,7 @@ function doLogin() {
     loadChildrenFromSheets();
     loadAttendanceFromSheets();
     loadGalaBookingsFromSheets();
+    loadAbsences();
   } else {
     document.getElementById('adminPass').classList.add('error');
     document.getElementById('loginError').classList.add('show');
@@ -1620,6 +1633,64 @@ function deleteGalleryImage(i) {
   siteData.gallery.splice(i, 1);
   renderGallery();
   showToast('Kép törölve!');
+}
+
+// HIÁNYZÁSOK
+async function loadAbsences() {
+  try {
+    const data = await apiCall('getAbsences');
+    const absences = data.absences || [];
+    const el = document.getElementById('absenceList');
+    if (!el) return;
+
+    if (absences.length === 0) {
+      el.innerHTML = '<div style="background:white;border:1px solid var(--border-lt);padding:1.5rem;color:var(--text-soft);font-size:13px;font-style:italic;">Nincs bejelentett hiányzás.</div>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Bejelentés</th>
+            <th>Gyerek neve</th>
+            <th>Csoport</th>
+            <th>Hiányzás dátuma</th>
+            <th>Megjegyzés</th>
+            <th>Státusz</th>
+          </tr></thead>
+          <tbody>${absences.map((a, i) => `
+            <tr>
+              <td style="font-size:11px;color:var(--text-soft);">${a.reportedAt}</td>
+              <td class="td-name">${a.childName}</td>
+              <td><span class="td-group">${a.group}</span></td>
+              <td>${a.date}</td>
+              <td style="font-size:13px;color:var(--text-soft);">${a.message || '—'}</td>
+              <td>
+                <button onclick="markAbsenceSeen(${i})" 
+                  style="padding:5px 12px;font-size:11px;border:none;cursor:pointer;font-family:Inter,sans-serif;
+                  background:${a.status === 'Látva' ? 'var(--green-bg)' : 'var(--red-bg)'};
+                  color:${a.status === 'Látva' ? 'var(--green-dark)' : 'var(--red)'};">
+                  ${a.status === 'Látva' ? '✓ Látva' : '! Új'}
+                </button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    console.error('Hiányzások betöltési hiba:', e);
+  }
+}
+
+async function markAbsenceSeen(rowIndex) {
+  try {
+    await apiCall('updateAbsenceStatus', 'POST', { rowIndex, status: 'Látva' });
+    loadAbsences();
+    showToast('Hiányzás jelölve: Látva');
+  } catch(e) {
+    console.error('Státusz frissítési hiba:', e);
+  }
 }
 
 // TOAST
