@@ -524,12 +524,34 @@ async function renderPayment(child) {
   const feeDisplay = document.getElementById('feeDisplay');
   if (feeDisplay) feeDisplay.textContent = `Havi díj: ${feeStr}`;
 
-  document.getElementById('paymentHistory').innerHTML = months.map(m => {
+  // Get attendance to calculate half months
+  let attData = {};
+  try {
+    const attResp = await fetch(`/api/sheets?action=getAttendance&group=${encodeURIComponent(child.group)}`);
+    const attJson = await attResp.json();
+    attData = attJson.attendance?.[child.name] || {};
+  } catch(e) {}
+
+  document.getElementById('paymentHistory').innerHTML = months.map((m, idx) => {
     const status = payments[m] || 'unpaid';
     const isPaid = status === 'paid';
+    
+    // Check previous month attendance
+    const prevMonth = months[idx - 1];
+    let halfMonth = false;
+    if (prevMonth && fee > 0) {
+      const prevDates = Object.keys(attData).filter(d => {
+        const parts = d.split('.');
+        const month = parts[1] ? parts[1].trim().padStart(2, '0') : '';
+        return month === prevMonth;
+      });
+      const prevPresent = prevDates.filter(d => attData[d]).length;
+      if (prevPresent === 1) halfMonth = true;
+    }
+
     return `
       <div class="payment-row">
-        <span class="payment-row-month">${monthNames[m]}</span>
+        <span class="payment-row-month">${monthNames[m]}${halfMonth ? ' <span style="font-size:11px;color:var(--orange);font-weight:500;">· fél hónap</span>' : ''}</span>
         <span class="payment-row-status ${status}">${isPaid ? '✓ Fizetve' : '✗ Nem fizetve'}</span>
       </div>`;
   }).join('');
