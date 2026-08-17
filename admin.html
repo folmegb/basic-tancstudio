@@ -1160,8 +1160,6 @@ function printChildQR(id) {
     <html><head><title>QR - ${child.name}</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
     <style>body{font-family:sans-serif;text-align:center;padding:2rem;} h2{margin-bottom:0.5rem;} p{color:#666;font-size:14px;margin-bottom:1rem;}</style>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-<script>emailjs.init("LO3UtUGRu4O8Ndwc9");</script>
     </head><body>
     <h2>Basic Táncstúdió</h2>
     <p>${child.name} · ${child.group}</p>
@@ -1467,15 +1465,36 @@ let siteData = {
   gallery: []
 };
 
+async function saveSiteDataToSheets(key, value) {
+  try {
+    await apiCall('saveSiteData', 'POST', { key, value });
+  } catch(e) {
+    console.error('Weboldal adat mentési hiba:', e);
+  }
+}
+
+async function loadSiteDataFromSheets() {
+  try {
+    const data = await apiCall('getSiteData');
+    if (data.data) {
+      if (data.data.teachers) siteData.teachers = data.data.teachers;
+      if (data.data.ages) siteData.ages = data.data.ages;
+      if (data.data.gallery) siteData.gallery = data.data.gallery;
+    }
+  } catch(e) {
+    console.error('Weboldal adat betöltési hiba:', e);
+  }
+}
+
 function switchWebTab(e, tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.web-tab-content').forEach(c => c.style.display = 'none');
   document.getElementById('webtab-' + tab).style.display = 'block';
   e.target.classList.add('active');
-  if (tab === 'oktatok') renderTeachers();
+  if (tab === 'oktatok') { loadSiteDataFromSheets().then(renderTeachers); }
   if (tab === 'orarend') renderScheduleEditor();
-  if (tab === 'korosztaly') renderAgeEditor();
-  if (tab === 'galeria') renderGallery();
+  if (tab === 'korosztaly') { loadSiteDataFromSheets().then(renderAgeEditor); }
+  if (tab === 'galeria') { loadSiteDataFromSheets().then(renderGallery); }
 }
 
 // OKTATÓK
@@ -1512,20 +1531,34 @@ function renderTeachers() {
 
 function updateTeacher(id, field, value) {
   const t = siteData.teachers.find(t => t.id === id);
-  if (t) { t[field] = value; showToast('Mentve!'); }
+  if (t) { 
+    t[field] = value; 
+    saveSiteDataToSheets('teachers', siteData.teachers);
+    showToast('Mentve! ✓'); 
+  }
 }
 
-function uploadTeacherPhoto(event, id) {
+async function uploadTeacherPhoto(event, id) {
   const file = event.target.files[0];
   if (!file) return;
   if (file.size > 2 * 1024 * 1024) { showToast('Max 2MB!'); return; }
+  showToast('Feltöltés folyamatban...');
   const reader = new FileReader();
-  reader.onload = e => {
-    const t = siteData.teachers.find(t => t.id === id);
-    if (t) {
-      t.photo = e.target.result;
-      renderTeachers();
-      showToast('Fotó feltöltve!');
+  reader.onload = async e => {
+    try {
+      const resp = await apiCall('uploadImage', 'POST', { 
+        imageData: e.target.result, 
+        folder: 'basic-tancstudio/teachers' 
+      });
+      const t = siteData.teachers.find(t => t.id === id);
+      if (t && resp.url) {
+        t.photo = resp.url;
+        renderTeachers();
+        showToast('Fotó feltöltve! ✓');
+      }
+    } catch(e) {
+      showToast('Feltöltési hiba!');
+      console.error(e);
     }
   };
   reader.readAsDataURL(file);
@@ -1612,18 +1645,30 @@ function renderAgeEditor() {
 
 function updateAge(i, field, value) {
   siteData.ages[i][field] = value;
-  showToast('Mentve!');
+  saveSiteDataToSheets('ages', siteData.ages);
+  showToast('Mentve! ✓');
 }
 
-function uploadAgePhoto(event, i) {
+async function uploadAgePhoto(event, i) {
   const file = event.target.files[0];
   if (!file) return;
   if (file.size > 2 * 1024 * 1024) { showToast('Max 2MB!'); return; }
+  showToast('Feltöltés folyamatban...');
   const reader = new FileReader();
-  reader.onload = e => {
-    siteData.ages[i].photo = e.target.result;
-    renderAgeEditor();
-    showToast('Kép feltöltve!');
+  reader.onload = async e => {
+    try {
+      const resp = await apiCall('uploadImage', 'POST', { 
+        imageData: e.target.result, 
+        folder: 'basic-tancstudio/ages' 
+      });
+      if (resp.url) {
+        siteData.ages[i].photo = resp.url;
+        renderAgeEditor();
+        showToast('Kép feltöltve! ✓');
+      }
+    } catch(e) {
+      showToast('Feltöltési hiba!');
+    }
   };
   reader.readAsDataURL(file);
 }
@@ -1642,28 +1687,43 @@ function renderGallery() {
     </div>`).join('');
 }
 
-function uploadGalleryImages(event) {
+async function uploadGalleryImages(event) {
   const files = Array.from(event.target.files);
   if (siteData.gallery.length + files.length > 10) {
     showToast('Maximum 10 kép tölthető fel!');
     return;
   }
-  files.forEach(file => {
-    if (file.size > 2 * 1024 * 1024) { showToast(`${file.name} túl nagy (max 2MB)!`); return; }
+  showToast('Feltöltés folyamatban...');
+  let uploaded = 0;
+  for (const file of files) {
+    if (file.size > 2 * 1024 * 1024) { showToast(`${file.name} túl nagy (max 2MB)!`); continue; }
     const reader = new FileReader();
-    reader.onload = e => {
-      siteData.gallery.push(e.target.result);
-      renderGallery();
-    };
-    reader.readAsDataURL(file);
-  });
-  showToast(`${files.length} kép feltöltve!`);
+    await new Promise(resolve => {
+      reader.onload = async e => {
+        try {
+          const resp = await apiCall('uploadImage', 'POST', { 
+            imageData: e.target.result, 
+            folder: 'basic-tancstudio/gallery' 
+          });
+          if (resp.url) {
+            siteData.gallery.push(resp.url);
+            uploaded++;
+          }
+        } catch(e) { console.error(e); }
+        resolve();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  renderGallery();
+  showToast(`${uploaded} kép feltöltve! ✓`);
   event.target.value = '';
 }
 
 function deleteGalleryImage(i) {
   siteData.gallery.splice(i, 1);
   renderGallery();
+  saveSiteDataToSheets('gallery', siteData.gallery);
   showToast('Kép törölve!');
 }
 
