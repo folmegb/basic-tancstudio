@@ -452,6 +452,7 @@ tr:hover td { background: var(--ivory); }
     <div id="section-weboldal" style="display:none;">
       <div class="section-header">
         <div class="section-title">Weboldal <em>szerkesztése</em></div>
+        <button class="btn btn-green" onclick="saveAllSiteData()">💾 Mentés a főoldalra</button>
       </div>
 
       <!-- TABS -->
@@ -1464,6 +1465,18 @@ let siteData = {
   ],
   gallery: []
 };
+
+async function saveAllSiteData() {
+  try {
+    await apiCall('saveSiteData', 'POST', { key: 'teachers', value: siteData.teachers });
+    await apiCall('saveSiteData', 'POST', { key: 'ages', value: siteData.ages });
+    await apiCall('saveSiteData', 'POST', { key: 'gallery', value: siteData.gallery });
+    showToast('✅ Mentve! A főoldalon is megjelenik.');
+  } catch(e) {
+    showToast('❌ Mentési hiba!');
+    console.error(e);
+  }
+}
 
 async function saveSiteDataToSheets(key, value) {
   try {
