@@ -590,17 +590,17 @@ async function loadBookedSeats() {
 }
 
 function checkDate() {
-  // Teszteléshez mindig nyitva:
-  document.getElementById('bookingMain').style.display = 'block';
-  // Éles verzióhoz:
-  /*
   const now = new Date();
-  const open  = new Date(now.getFullYear(), 4, 1);
-  const close = new Date(now.getFullYear(), 4, 31, 23, 59);
-  if (now < open) document.getElementById('closedSoon').style.display = 'flex';
-  else if (now > close) document.getElementById('closedOver').style.display = 'flex';
-  else document.getElementById('bookingMain').style.display = 'block';
-  */
+  const year = now.getFullYear();
+  const open  = new Date(year, 4, 1);
+  const close = new Date(year, 4, 31, 23, 59);
+  if (now < open) {
+    document.getElementById('closedSoon').style.display = 'flex';
+  } else if (now > close) {
+    document.getElementById('closedOver').style.display = 'flex';
+  } else {
+    document.getElementById('bookingMain').style.display = 'block';
+  }
 }
 
 checkDate();
