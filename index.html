@@ -499,6 +499,63 @@ function openTickets() {
 }
 
 function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
+
+// Betölti a weboldal adatokat a Sheets-ből és frissíti az oldalt
+async function loadSiteData() {
+  try {
+    const resp = await fetch('/api/sheets?action=getSiteData');
+    const data = await resp.json();
+    if (!data.data) return;
+
+    // OKTATÓK frissítése
+    if (data.data.teachers && data.data.teachers.length > 0) {
+      const grid = document.querySelector('.teachers-grid');
+      if (grid) {
+        grid.innerHTML = data.data.teachers.map(t => `
+          <div class="teacher-card">
+            ${t.photo ? `<img src="${t.photo}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:1.5rem;border:2px solid var(--green-mid);">` 
+                      : `<div class="teacher-avatar">${t.name.split(' ').map(n=>n[0]).join('')}</div>`}
+            <div class="teacher-name">${t.name}</div>
+            <div class="teacher-quote">"${t.quote}"<div class="teacher-source">— ${t.source}</div></div>
+          </div>`).join('');
+      }
+    }
+
+    // KOROSZTÁLYOK frissítése
+    if (data.data.ages && data.data.ages.length > 0) {
+      const rows = document.querySelector('.age-rows');
+      if (rows) {
+        rows.innerHTML = data.data.ages.map((a, i) => `
+          <div class="age-row">
+            ${a.photo ? `<img class="age-img" src="${a.photo}" alt="${a.style}">` 
+                      : `<div class="age-img" style="background:var(--cream2);display:flex;align-items:center;justify-content:center;color:var(--text-soft);">${a.style}</div>`}
+            <div class="age-text-wrap">
+              <div class="age-style-name">${a.style}</div>
+              <div class="age-meta">${a.meta}</div>
+              <div class="age-desc">${a.desc}</div>
+            </div>
+          </div>`).join('');
+      }
+    }
+
+    // GALÉRIA frissítése
+    if (data.data.gallery && data.data.gallery.length > 0) {
+      const grid = document.querySelector('.gallery-grid');
+      if (grid) {
+        grid.innerHTML = data.data.gallery.map((url, i) => `
+          <div class="gallery-item${i === 0 ? ' first' : ''}">
+            <img src="${url}" alt="Galéria ${i+1}">
+          </div>`).join('');
+      }
+    }
+
+  } catch(e) {
+    console.log('Weboldal adatok betöltése sikertelen:', e);
+  }
+}
+
+// Betöltés oldal megnyitásakor
+document.addEventListener('DOMContentLoaded', loadSiteData);
 function toggleLoginMenu(e) {
   e.stopPropagation();
   const menu = document.getElementById('loginMenu');
