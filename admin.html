@@ -190,6 +190,8 @@ tr:hover td { background: var(--ivory); }
   .stats-row { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script>emailjs.init("LO3UtUGRu4O8Ndwc9");</script>
 </head>
 <body>
 
@@ -1158,6 +1160,8 @@ function printChildQR(id) {
     <html><head><title>QR - ${child.name}</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
     <style>body{font-family:sans-serif;text-align:center;padding:2rem;} h2{margin-bottom:0.5rem;} p{color:#666;font-size:14px;margin-bottom:1rem;}</style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script>emailjs.init("LO3UtUGRu4O8Ndwc9");</script>
     </head><body>
     <h2>Basic Táncstúdió</h2>
     <p>${child.name} · ${child.group}</p>
@@ -1230,12 +1234,34 @@ function deleteChild(id) {
 }
 
 // EMAIL REMINDER
-function sendPaymentReminders() {
-  const currentMonth = months[months.length - 1];
-  const unpaid = children.filter(c => c.payment[currentMonth] === 'unpaid' && c.parentEmail);
-  if (unpaid.length === 0) { showToast('Mindenki fizetett! Nem kell emlékeztetőt küldeni.'); return; }
-  // TODO: Gmail API összekötés
-  showToast('📧 Emlékeztető elküldve ' + unpaid.length + ' szülőnek! (Google Sheets összekötés után éles)');
+async function sendPaymentReminders() {
+  const monthSel = document.getElementById('paymentMonthFilter');
+  const currentMonth = monthSel ? monthSel.value : months[0];
+  const monthName = {'09':'Szeptember','10':'Október','11':'November','12':'December','01':'Január','02':'Február','03':'Március','04':'Április','05':'Május'}[currentMonth] || currentMonth;
+  
+  const unpaid = children.filter(c => c.payment && c.payment[currentMonth] === 'unpaid' && c.parentEmail);
+  
+  if (unpaid.length === 0) { 
+    showToast('Mindenki fizetett! Nem kell emlékeztetőt küldeni.'); 
+    return; 
+  }
+
+  if (!confirm(`${unpaid.length} szülőnek küldöd el az emlékeztetőt (${monthName})?`)) return;
+
+  let sent = 0;
+  for (const child of unpaid) {
+    try {
+      await emailjs.send('service_vsgf4cp', 'template_l19u2pr', {
+        to_name: child.parentName || child.name,
+        to_email: child.parentEmail,
+        month: monthName
+      });
+      sent++;
+    } catch(e) {
+      console.error('Email küldési hiba:', child.name, e);
+    }
+  }
+  showToast(`📧 Emlékeztető elküldve ${sent}/${unpaid.length} szülőnek!`);
 }
 
 // MODAL
