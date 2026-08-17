@@ -568,6 +568,27 @@ function renderGroundLabels() {
   `;
 }
 
+async function loadBookedSeats() {
+  try {
+    const resp = await fetch('/api/sheets?action=getBookedSeats');
+    const data = await resp.json();
+    if (data.bookedSeats && data.bookedSeats.length > 0) {
+      // Match seat labels to seat IDs
+      document.querySelectorAll('.seat').forEach(seat => {
+        const label = seat.dataset.label;
+        if (data.bookedSeats.includes(label)) {
+          takenSeats.add(seat.dataset.id);
+          seat.classList.add('taken');
+          seat.classList.remove('selected');
+          seat.onclick = null;
+        }
+      });
+    }
+  } catch(e) {
+    console.error('Foglalt helyek betöltési hiba:', e);
+  }
+}
+
 function checkDate() {
   // Teszteléshez mindig nyitva:
   document.getElementById('bookingMain').style.display = 'block';
@@ -586,6 +607,7 @@ checkDate();
 renderGround();
 renderGroundLabels();
 renderErkely();
+loadBookedSeats();
 </script>
 </body>
 </html>
