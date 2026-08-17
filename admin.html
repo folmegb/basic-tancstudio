@@ -911,7 +911,13 @@ function renderPayment() {
               ${months.map(m => {
                 const status = c.payment ? (c.payment[m] || 'unpaid') : 'unpaid';
                 const icon = status === 'paid' ? '✓' : '✗';
-                return `<td><button class="pay-cell ${status}" onclick="togglePayment('${c.id}','${m}')">${icon}</button></td>`;
+                const fee = calcFee(c, m);
+                const fullFee = c.monthlyFee || 0;
+                const isHalf = fullFee > 0 && fee === Math.round(fullFee / 2);
+                const isZero = fullFee > 0 && fee === 0;
+                const warning = isHalf ? '<div style="font-size:9px;color:var(--orange);margin-top:2px;">½ hónap</div>' : 
+                                isZero ? '<div style="font-size:9px;color:var(--text-soft);margin-top:2px;">0 Ft</div>' : '';
+                return `<td><button class="pay-cell ${status}" onclick="togglePayment('${c.id}','${m}')">${icon}</button>${warning}</td>`;
               }).join('')}
             </tr>`).join('')}
           </tbody>
