@@ -196,6 +196,7 @@ body { font-family: 'Inter', sans-serif; background: var(--ivory); color: var(--
           <span class="card-title">Aktuális hónap</span>
         </div>
         <div class="card-body">
+          <div style="font-size:13px;color:var(--text-mid);margin-bottom:1rem;" id="feeDisplay"></div>
           <div class="payment-status">
             <div class="payment-badge" id="currentPaymentBadge">—</div>
             <div class="payment-month" id="currentPaymentMonth">—</div>
@@ -244,7 +245,7 @@ const database = {
     parentName: "Kiss Mária",
     parentPhone: "+36 30 123 4567",
     parentEmail: "kiss.maria@email.hu",
-    billingAddress: "1047 Budapest, Példa utca 12.",
+    billing: "1047 Budapest, Példa utca 12.",
     childPhone: "",
     childEmail: "",
     styles: ["Mesebalett"],
@@ -284,7 +285,7 @@ const database = {
     parentName: "Nagy Katalin",
     parentPhone: "+36 70 987 6543",
     parentEmail: "nagy.katalin@email.hu",
-    billingAddress: "1052 Budapest, Minta utca 5.",
+    billing: "1052 Budapest, Minta utca 5.",
     childPhone: "",
     childEmail: "",
     styles: ["Jazz", "Kortárs"],
@@ -462,7 +463,8 @@ async function renderPayment(child) {
   const feeStr = fee > 0 ? fee.toLocaleString('hu-HU') + ' Ft' : 'Nincs megadva';
 
   // Show fee at top
-  document.getElementById('paymentNote').textContent = `Havi díj: ${feeStr}`;
+  const feeDisplay = document.getElementById('feeDisplay');
+  if (feeDisplay) feeDisplay.textContent = `Havi díj: ${feeStr}`;
 
   document.getElementById('paymentHistory').innerHTML = months.map(m => {
     const status = payments[m] || 'unpaid';
@@ -493,7 +495,7 @@ function renderProfile(child) {
     { label: 'Szülő neve', key: 'parentName', required: true },
     { label: 'Szülő telefonszáma', key: 'parentPhone', required: true },
     { label: 'Szülő email', key: 'parentEmail', required: true },
-    { label: 'Számlázási cím', key: 'billingAddress', required: true },
+    { label: 'Számlázási cím', key: 'billing', required: true },
     { label: 'Gyermek telefonja', key: 'childPhone', required: false },
     { label: 'Gyermek emailje', key: 'childEmail', required: false },
   ];
