@@ -148,12 +148,11 @@ section { padding: 120px 3rem; }
 
 #galeria { background: var(--cream); }
 .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-.gallery-item { aspect-ratio: 4/3; background: var(--cream2); display: flex; align-items: center; justify-content: center; transition: all 0.3s; overflow: hidden; box-shadow: var(--shadow-sm); }
-.gallery-item:first-child { grid-column: span 2; aspect-ratio: 2/1; }
-.gallery-item:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s; }
-.gallery-item:hover img { transform: scale(1.04); }
-.gallery-ph { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-soft); }
+.gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-items: start; }
+.gallery-item { background: var(--cream2); overflow: hidden; box-shadow: var(--shadow-sm); cursor: pointer; position: relative; }
+.gallery-item:hover { box-shadow: var(--shadow-md); }
+.gallery-item img { width: 100%; height: auto; display: block; transition: transform 0.4s; }
+.gallery-item:hover img { transform: scale(1.02); }
 .gallery-note { margin-top: 2rem; font-size: 13px; color: var(--text-soft); font-style: italic; }
 .gallery-note a { color: var(--green); text-decoration: none; }
 
@@ -426,7 +425,6 @@ footer a:hover { color: var(--green-mid); }
   <div class="section-inner">
     <p class="section-tag">Galéria</p>
     <h2 class="section-title">Pillanatok a <em>stúdióból</em></h2>
-    <p class="section-lead">Hamarosan feltöltjük a legjobb pillanatainkat.</p>
     <div class="gallery-grid" id="gallery-grid-dynamic"></div></div>
       <div class="gallery-item"><div class="gallery-ph">Kép hamarosan</div></div>
       <div class="gallery-item"><div class="gallery-ph">Kép hamarosan</div></div>
@@ -475,6 +473,15 @@ function openTickets() {
   window.location.href = 'gala-jegyfoglalas.html';
 }
 
+function openLightbox(url) {
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightbox').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  document.getElementById('lightbox').style.display = 'none';
+  document.body.style.overflow = '';
+}
 function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
 
 // Betölti a weboldal adatokat a Sheets-ből és frissíti az oldalt
@@ -567,7 +574,7 @@ async function loadSiteData() {
       const grid = document.getElementById('gallery-grid-dynamic');
       if (grid) {
         grid.innerHTML = data.data.gallery.map((url, i) => `
-          <div class="gallery-item${i === 0 ? ' first' : ''}">
+          <div class="gallery-item" onclick="openLightbox('${url}')">
             <img src="${url}" alt="Galéria ${i+1}">
           </div>`).join('');
       }
