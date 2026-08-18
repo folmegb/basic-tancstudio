@@ -1496,6 +1496,7 @@ async function loadSiteDataFromSheets() {
       if (data.data.teachers) siteData.teachers = data.data.teachers;
       if (data.data.ages) siteData.ages = data.data.ages;
       if (data.data.gallery) siteData.gallery = data.data.gallery;
+      if (data.data.schedule) siteData.schedule = data.data.schedule;
     }
   } catch(e) {
     console.error('Weboldal adat betöltési hiba:', e);
@@ -1508,9 +1509,13 @@ function switchWebTab(e, tab) {
   document.querySelectorAll('.web-tab-content').forEach(c => c.style.display = 'none');
   document.getElementById('webtab-' + tab).style.display = 'block';
   e.target.classList.add('active');
-  if (tab === 'oktatok') renderTeachers();
-  if (tab === 'orarend') renderScheduleEditor();
-  if (tab === 'korosztaly') renderAgeEditor();
+  // Minden fülváltásnál betöltjük a Sheets-ből
+  loadSiteDataFromSheets().then(() => {
+    if (tab === 'oktatok') renderTeachers();
+    if (tab === 'orarend') renderScheduleEditor();
+    if (tab === 'korosztaly') renderAgeEditor();
+    if (tab === 'galeria') renderGallery();
+  });
   if (tab === 'galeria') renderGallery();
 }
 
@@ -1571,6 +1576,7 @@ async function uploadTeacherPhoto(event, id) {
       if (t && resp.url) {
         t.photo = resp.url;
         renderTeachers();
+        saveSiteDataToSheets('teachers', siteData.teachers);
         showToast('Fotó feltöltve! ✓');
       }
     } catch(e) {
@@ -1617,17 +1623,20 @@ function renderScheduleEditor() {
 
 function updateSchedule(i, field, value) {
   siteData.schedule[i][field] = value;
+  saveSiteDataToSheets('schedule', siteData.schedule);
   showToast('Mentve!');
 }
 
 function addScheduleRow() {
   siteData.schedule.push({ day: "Nap", time: "00:00 – 00:00", name: "Új óra", age: "", location: "Tapolca" });
   renderScheduleEditor();
+  saveSiteDataToSheets('schedule', siteData.schedule);
 }
 
 function deleteScheduleRow(i) {
   siteData.schedule.splice(i, 1);
   renderScheduleEditor();
+  saveSiteDataToSheets('schedule', siteData.schedule);
 }
 
 // KOROSZTÁLYOK
@@ -1683,6 +1692,7 @@ async function uploadAgePhoto(event, i) {
       if (resp.url) {
         siteData.ages[i].photo = resp.url;
         renderAgeEditor();
+        saveSiteDataToSheets('ages', siteData.ages);
         showToast('Kép feltöltve! ✓');
       }
     } catch(e) {
