@@ -515,6 +515,53 @@ async function loadSiteData() {
       }
     }
 
+    // ÓRAREND frissítése
+    if (data.data.schedule && data.data.schedule.length > 0) {
+      // Tapolca tab
+      const tapolcaEl = document.getElementById('tab-tapolca');
+      const budapestEl = document.getElementById('tab-budapest');
+      if (tapolcaEl) {
+        const tapolca = data.data.schedule.filter(s => s.location !== 'Budapest');
+        const budapest = data.data.schedule.filter(s => s.location === 'Budapest');
+        
+        // Group by day
+        const days = {};
+        tapolca.forEach(s => {
+          if (!days[s.day]) days[s.day] = [];
+          days[s.day].push(s);
+        });
+        
+        tapolcaEl.innerHTML = Object.entries(days).map(([day, classes]) => `
+          <div class="schedule-day">
+            <div class="schedule-day-header">
+              <div class="day-name">${day}</div>
+              <div class="day-location">Tapolca</div>
+            </div>
+            ${classes.map(c => `
+              <div class="schedule-class">
+                <div class="class-time">${c.time}</div>
+                <div class="class-name">${c.name}</div>
+                <div class="class-age">${c.age}</div>
+              </div>`).join('')}
+          </div>`).join('');
+
+        if (budapestEl && budapest.length > 0) {
+          budapestEl.innerHTML = budapest.map(c => `
+            <div class="schedule-day">
+              <div class="schedule-day-header">
+                <div class="day-name">${c.day}</div>
+                <div class="day-location">Budapest</div>
+              </div>
+              <div class="schedule-class">
+                <div class="class-time">${c.time}</div>
+                <div class="class-name">${c.name}</div>
+                <div class="class-age">${c.age}</div>
+              </div>
+            </div>`).join('');
+        }
+      }
+    }
+
     // GALÉRIA frissítése
     if (data.data.gallery && data.data.gallery.length > 0) {
       const grid = document.getElementById('gallery-grid-dynamic');
