@@ -389,14 +389,30 @@ export default async function handler(req, res) {
     // SAVE SITE DATA (teachers, ages, gallery)
     if (action === 'saveSiteData' && req.method === 'POST') {
       const { key, value } = req.body;
-      // Save to a dedicated sheet or use a simple approach
-      // We'll use the Gyerekek sheet's last rows for site config
-      await sheets.spreadsheets.values.update({
+      
+      // Find existing row for this key, or append new
+      const existing = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: `Weboldal!A1:B1`,
-        valueInputOption: 'RAW',
-        resource: { values: [[key, JSON.stringify(value)]] },
+        range: 'Weboldal!A1:A100',
       });
+      const rows = existing.data.values || [];
+      const rowIdx = rows.findIndex(r => r[0] === key);
+      
+      if (rowIdx !== -1) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SHEET_ID,
+          range: `Weboldal!A${rowIdx + 1}:B${rowIdx + 1}`,
+          valueInputOption: 'RAW',
+          resource: { values: [[key, JSON.stringify(value)]] },
+        });
+      } else {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: SHEET_ID,
+          range: 'Weboldal!A1',
+          valueInputOption: 'RAW',
+          resource: { values: [[key, JSON.stringify(value)]] },
+        });
+      }
       return res.status(200).json({ success: true });
     }
 
@@ -409,7 +425,11 @@ export default async function handler(req, res) {
         });
         const rows = response.data.values || [];
         const data = {};
-        rows.forEach(r => { if (r[0] && r[1]) { try { data[r[0]] = JSON.parse(r[1]); } catch(e) {} } });
+        rows.forEach(r => { 
+          if (r[0] && r[1]) { 
+            try { data[r[0]] = JSON.parse(r[1]); } catch(e) {} 
+          } 
+        });
         return res.status(200).json({ data });
       } catch(e) {
         return res.status(200).json({ data: {} });
