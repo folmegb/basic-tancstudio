@@ -751,6 +751,9 @@ function showSection(name) {
   document.getElementById('section-' + name).style.display = 'block';
   document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
   event.currentTarget && event.currentTarget.classList.add('active');
+  if (name === 'weboldal') {
+    loadSiteDataFromSheets().then(() => renderTeachers());
+  }
 }
 
 // RENDER ALL
