@@ -369,29 +369,7 @@ footer a:hover { color: var(--green-mid); }
     <p class="section-tag">Oktatóink</p>
     <h2 class="section-title">Akik <em>várnak</em> titeket</h2>
     <p class="section-lead">Tapasztalt, lelkes oktatók, akik nemcsak tanítanak, hanem figyelnek is.</p>
-    <div class="teachers-grid">
-      <div class="teacher-card">
-        <div class="teacher-avatar">FB</div>
-        <div class="teacher-name">Folmeg Barbara</div>
-        <div class="teacher-quote">"Barbi néninek vannak a világon a legviccesebb zoknijai."<div class="teacher-source">— Alsó tagozatos csoport</div></div>
-      </div>
-      <div class="teacher-card">
-        <div class="teacher-avatar">NK</div>
-        <div class="teacher-name">Németh Kata</div>
-        <div class="teacher-quote">"Kata tud repülni, tényleg tud, meg forogni a levegőben fejjel lefele. Ő a legmenőbb."<div class="teacher-source">— Ovis csoport</div></div>
-      </div>
-      <div class="teacher-card">
-        <div class="teacher-avatar">MK</div>
-        <div class="teacher-name">Mihály Kinga</div>
-        <div class="teacher-quote">"Kinga néni mindig megmutatja háromszor is, ha nem értjük. És sosem unja meg."<div class="teacher-source">— Suliscsoport</div></div>
-      </div>
-      <div class="teacher-card">
-        <div class="teacher-avatar">KB</div>
-        <div class="teacher-name">Kötél Barbara</div>
-        <div class="teacher-quote">"Ha nem ő fog tanítani minket, akkor nem jövök többet."<div class="teacher-source">— Ovis csoport</div></div>
-      </div>
-    </div>
-  </div>
+    <div class="teachers-grid" id="teachers-grid-dynamic"></div>
 </section>
 
 <section id="korosztaly">
@@ -449,8 +427,7 @@ footer a:hover { color: var(--green-mid); }
     <p class="section-tag">Galéria</p>
     <h2 class="section-title">Pillanatok a <em>stúdióból</em></h2>
     <p class="section-lead">Hamarosan feltöltjük a legjobb pillanatainkat.</p>
-    <div class="gallery-grid">
-      <div class="gallery-item"><div class="gallery-ph">Kép hamarosan</div></div>
+    <div class="gallery-grid" id="gallery-grid-dynamic"></div></div>
       <div class="gallery-item"><div class="gallery-ph">Kép hamarosan</div></div>
       <div class="gallery-item"><div class="gallery-ph">Kép hamarosan</div></div>
       <div class="gallery-item"><div class="gallery-ph">Kép hamarosan</div></div>
@@ -509,7 +486,7 @@ async function loadSiteData() {
 
     // OKTATÓK frissítése
     if (data.data.teachers && data.data.teachers.length > 0) {
-      const grid = document.querySelector('.teachers-grid');
+      const grid = document.getElementById('teachers-grid-dynamic');
       if (grid) {
         grid.innerHTML = data.data.teachers.map(t => `
           <div class="teacher-card">
@@ -523,7 +500,7 @@ async function loadSiteData() {
 
     // KOROSZTÁLYOK frissítése
     if (data.data.ages && data.data.ages.length > 0) {
-      const rows = document.querySelector('.age-rows');
+      const rows = document.getElementById('age-rows-dynamic');
       if (rows) {
         rows.innerHTML = data.data.ages.map((a, i) => `
           <div class="age-row">
@@ -540,7 +517,7 @@ async function loadSiteData() {
 
     // GALÉRIA frissítése
     if (data.data.gallery && data.data.gallery.length > 0) {
-      const grid = document.querySelector('.gallery-grid');
+      const grid = document.getElementById('gallery-grid-dynamic');
       if (grid) {
         grid.innerHTML = data.data.gallery.map((url, i) => `
           <div class="gallery-item${i === 0 ? ' first' : ''}">
