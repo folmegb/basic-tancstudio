@@ -1585,12 +1585,14 @@ function addTeacher() {
   const newId = Math.max(...siteData.teachers.map(t => t.id), 0) + 1;
   siteData.teachers.push({ id: newId, name: "Új oktató", quote: "", source: "", photo: null });
   renderTeachers();
+  saveSiteDataToSheets('teachers', siteData.teachers);
 }
 
 function deleteTeacher(id) {
   if (!confirm('Biztosan törlöd ezt az oktatót?')) return;
   siteData.teachers = siteData.teachers.filter(t => t.id !== id);
   renderTeachers();
+  saveSiteDataToSheets('teachers', siteData.teachers);
 }
 
 // ÓRAREND
@@ -1733,6 +1735,7 @@ async function uploadGalleryImages(event) {
     });
   }
   renderGallery();
+  saveSiteDataToSheets('gallery', siteData.gallery);
   showToast(`${uploaded} kép feltöltve! ✓`);
   event.target.value = '';
 }
