@@ -617,7 +617,8 @@ function submitForm() {
   emailjs.send('service_vsgf4cp', 'template_chjqsh4', {
     name: name,
     email: email,
-    message: message
+    message: message,
+    child_age: age
   }).then(() => {
     alert('Köszönjük üzenetedet! Hamarosan felvesszük veled a kapcsolatot.');
     document.querySelector('#kapcsolat input[type="text"]').value = '';
