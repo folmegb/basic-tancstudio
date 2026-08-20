@@ -838,7 +838,7 @@ function renderChildren() {
             </tr></thead>
             <tbody>${kids.map(c => `
               <tr>
-                <td class="td-name">${c.name}</td>
+                <td class="td-name" style="cursor:pointer;color:var(--green-dark);" onclick="openProfile('${c.id}')">${c.name}</td>
                 <td class="td-pin">${c.pin}</td>
                 <td>
                   <div style="display:flex;align-items:center;gap:8px;">
