@@ -448,6 +448,23 @@ tr:hover td { background: var(--ivory); }
       </div>
     </div>
 
+    <!-- GYEREK PROFIL MODAL -->
+    <div class="modal-overlay" id="profileModal">
+      <div class="modal" style="max-width:640px;">
+        <div class="modal-header">
+          <div class="modal-title" id="profileModalTitle">Gyerek adatai</div>
+          <button class="modal-close" onclick="closeModal('profileModal')">✕</button>
+        </div>
+        <div class="modal-body" id="profileModalBody"></div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('profileModal')">Bezárás</button>
+          <button class="btn btn-outline" id="profileQrBtn">QR</button>
+          <button class="btn btn-outline" style="color:var(--red);border-color:var(--red);" id="profileDeleteBtn">Törlés</button>
+          <button class="btn btn-green" id="profileEditBtn">Szerkesztés</button>
+        </div>
+      </div>
+    </div>
+
     <!-- WEBOLDAL -->
     <div id="section-weboldal" style="display:none;">
       <div class="section-header">
