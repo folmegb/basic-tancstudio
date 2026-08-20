@@ -793,12 +793,19 @@ function showDashboard() {
   document.getElementById('loginWrap').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('logoutBtn').style.display = 'block';
+  renderAll();
+  loadChildrenFromSheets();
+  loadAttendanceFromSheets();
+  loadGalaBookingsFromSheets();
+  loadAbsences();
 }
 
 function doLogin() {
   const pass = document.getElementById('adminPass').value;
   if (pass === ADMIN_PASSWORD) {
     showDashboard();
+    saveSession();
+    startActivityTracking();
   } else {
     document.getElementById('adminPass').classList.add('error');
     document.getElementById('loginError').classList.add('show');
@@ -811,6 +818,8 @@ function logout() {
   document.getElementById('app').style.display = 'none';
   document.getElementById('logoutBtn').style.display = 'none';
   document.getElementById('adminPass').value = '';
+  clearSession();
+  stopActivityTracking();
 }
 
 // NAVIGATION
@@ -1952,6 +1961,14 @@ function openProfile(id) {
 
   document.getElementById('profileModal').classList.add('show');
 }
+
+// AUTO-LOGIN CHECK
+document.addEventListener('DOMContentLoaded', function() {
+  if (checkSession()) {
+    showDashboard();
+    startActivityTracking();
+  }
+});
 
 // TOAST
 function showToast(msg) {
