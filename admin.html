@@ -301,7 +301,12 @@ tr:hover td { background: var(--ivory); }
     <div id="section-children" style="display:none;">
       <div class="section-header">
         <div class="section-title">Gyerekek</div>
-        <div style="display:flex;gap:0.75rem;">
+        <div style="display:flex;gap:1rem;align-items:center;">
+          <input type="text" id="childSearch" placeholder="Keresés..." 
+            oninput="renderChildren()"
+            style="padding:10px 14px;border:1px solid var(--border);background:var(--ivory);font-family:Inter,sans-serif;font-size:13px;outline:none;width:200px;"
+            onfocus="this.style.borderColor='var(--green)'"
+            onblur="this.style.borderColor='var(--border)'">
           <button class="btn btn-outline" onclick="refreshFromSheets()">🔄 Frissítés</button>
           <button class="btn btn-green" onclick="openAddModal()">+ Új gyerek</button>
         </div>
