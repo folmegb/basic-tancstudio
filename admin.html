@@ -731,6 +731,53 @@ async function deleteChildFromSheets(id, name) {
 
 // ADMIN PASSWORD (élesítéskor változtasd meg!)
 const ADMIN_PASSWORD = "basic2025";
+const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 perc
+let sessionTimer = null;
+
+function saveSession() {
+  localStorage.setItem('adminSession', JSON.stringify({
+    loggedIn: true,
+    lastActivity: Date.now()
+  }));
+}
+
+function clearSession() {
+  localStorage.removeItem('adminSession');
+}
+
+function checkSession() {
+  const session = JSON.parse(localStorage.getItem('adminSession') || 'null');
+  if (!session) return false;
+  if (Date.now() - session.lastActivity > SESSION_TIMEOUT) {
+    clearSession();
+    return false;
+  }
+  return true;
+}
+
+function resetSessionTimer() {
+  saveSession();
+  clearTimeout(sessionTimer);
+  sessionTimer = setTimeout(() => {
+    clearSession();
+    doLogout();
+    alert('15 perc inaktivitás miatt kiléptettünk.');
+  }, SESSION_TIMEOUT);
+}
+
+function startActivityTracking() {
+  ['click', 'keydown', 'mousemove', 'scroll'].forEach(evt => {
+    document.addEventListener(evt, resetSessionTimer, { passive: true });
+  });
+  resetSessionTimer();
+}
+
+function stopActivityTracking() {
+  ['click', 'keydown', 'mousemove', 'scroll'].forEach(evt => {
+    document.removeEventListener(evt, resetSessionTimer);
+  });
+  clearTimeout(sessionTimer);
+}
 
 // DEMO ADATBÁZIS
 const groups = ["Mesebalett", "Közepesek", "Péntekiek", "Szombati nagyok"];
@@ -742,17 +789,16 @@ let editingChildId = null;
 let newChildData = null;
 
 // LOGIN
+function showDashboard() {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('logoutBtn').style.display = 'block';
+}
+
 function doLogin() {
   const pass = document.getElementById('adminPass').value;
   if (pass === ADMIN_PASSWORD) {
-    document.getElementById('loginWrap').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    document.getElementById('logoutBtn').style.display = 'block';
-    renderAll();
-    loadChildrenFromSheets();
-    loadAttendanceFromSheets();
-    loadGalaBookingsFromSheets();
-    loadAbsences();
+    showDashboard();
   } else {
     document.getElementById('adminPass').classList.add('error');
     document.getElementById('loginError').classList.add('show');
