@@ -398,6 +398,40 @@ async function submitAbsence() {
   }
 }
 
+const PARENT_SESSION_TIMEOUT = 15 * 60 * 1000;
+let parentSessionTimer = null;
+
+function saveParentSession(child) {
+  localStorage.setItem('parentSession', JSON.stringify({
+    child: child,
+    lastActivity: Date.now()
+  }));
+}
+
+function clearParentSession() {
+  localStorage.removeItem('parentSession');
+}
+
+function resetParentTimer() {
+  if (!currentChild) return;
+  localStorage.setItem('parentSession', JSON.stringify({
+    child: currentChild,
+    lastActivity: Date.now()
+  }));
+  clearTimeout(parentSessionTimer);
+  parentSessionTimer = setTimeout(() => {
+    clearParentSession();
+    showLogin();
+  }, PARENT_SESSION_TIMEOUT);
+}
+
+function showLogin() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  currentChild = null;
+  clearTimeout(parentSessionTimer);
+}
+
 function onPinKey(e) {
   if (e.key === 'Enter') doLogin();
   document.getElementById('pinInput').classList.remove('error');
@@ -426,7 +460,12 @@ async function doLogin() {
     return;
   }
   currentChild = child;
+  saveParentSession(child);
   showDashboard(child);
+  ['click', 'keydown', 'mousemove'].forEach(evt => {
+    document.addEventListener(evt, resetParentTimer, { passive: true });
+  });
+  resetParentTimer();
 }
 
 function showDashboard(child) {
@@ -655,6 +694,14 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Auto-login check
+const _ps = JSON.parse(localStorage.getItem('parentSession') || 'null');
+if (_ps && Date.now() - _ps.lastActivity < PARENT_SESSION_TIMEOUT) {
+  currentChild = _ps.child;
+  showDashboard(_ps.child);
+  resetParentTimer();
 }
 </script>
 </body>
