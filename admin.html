@@ -824,8 +824,9 @@ function renderDashUnpaid() {
 // CHILDREN
 function renderChildren() {
   const el = document.getElementById('childrenByGroup');
+  const searchTerm = document.getElementById('childSearch')?.value.toLowerCase() || '';
   el.innerHTML = groups.map(g => {
-    const kids = children.filter(c => c.group === g).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
+    const kids = children.filter(c => c.group === g && (!searchTerm || c.name.toLowerCase().includes(searchTerm))).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
     if (kids.length === 0) return '';
     return `
       <div class="group-block">
@@ -897,8 +898,9 @@ function renderPaymentSummary() {
 // PAYMENT
 function renderPayment() {
   const el = document.getElementById('paymentByGroup');
+  const searchTerm = document.getElementById('childSearch')?.value.toLowerCase() || '';
   el.innerHTML = groups.map(g => {
-    const kids = children.filter(c => c.group === g).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
+    const kids = children.filter(c => c.group === g && (!searchTerm || c.name.toLowerCase().includes(searchTerm))).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
     if (kids.length === 0) return '';
     return `
       <div class="group-block">
@@ -969,8 +971,9 @@ let attendanceData = {}; // { childId: { date: true/false } }
 function renderAttendance() {
   const selectedMonth = document.getElementById('attendanceMonthFilter')?.value || months[0];
   const el = document.getElementById('attendanceByGroup');
+  const searchTerm = document.getElementById('childSearch')?.value.toLowerCase() || '';
   el.innerHTML = groups.map(g => {
-    const kids = children.filter(c => c.group === g).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
+    const kids = children.filter(c => c.group === g && (!searchTerm || c.name.toLowerCase().includes(searchTerm))).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
     if (kids.length === 0) return '';
     
     // Get dates for this group and month
@@ -1278,8 +1281,9 @@ const STYLES = ["Mesebalett", "Jazz", "Kortárs", "Versenyzés"];
 
 function renderStilusok() {
   const el = document.getElementById('stilusokTable');
+  const searchTerm = document.getElementById('childSearch')?.value.toLowerCase() || '';
   el.innerHTML = groups.map(g => {
-    const kids = children.filter(c => c.group === g).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
+    const kids = children.filter(c => c.group === g && (!searchTerm || c.name.toLowerCase().includes(searchTerm))).sort((a,b) => a.name.localeCompare(b.name, 'hu'));
     if (kids.length === 0) return '';
     return `
       <div class="group-block">
@@ -1813,6 +1817,72 @@ async function markAbsenceSeen(rowIndex) {
   } catch(e) {
     console.error('Státusz frissítési hiba:', e);
   }
+}
+
+// GYEREK PROFIL
+function openProfile(id) {
+  const child = children.find(c => c.id === id);
+  if (!child) return;
+
+  document.getElementById('profileModalTitle').textContent = child.name;
+
+  const fee = child.monthlyFee ? child.monthlyFee.toLocaleString('hu-HU') + ' Ft' : '—';
+  const styles = child.styles && child.styles.length > 0 ? child.styles.join(', ') : '—';
+
+  document.getElementById('profileModalBody').innerHTML = `
+    <!-- 1. sor: név, csoport, összeg -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem;background:var(--green-bg);padding:1.25rem;border:1px solid var(--green-mid);">
+      <div>
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--green-dark);margin-bottom:4px;">Név</div>
+        <div style="font-size:16px;font-weight:500;color:var(--charcoal);">${child.name}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--green-dark);margin-bottom:4px;">Csoport</div>
+        <div style="font-size:15px;color:var(--charcoal);">${child.group}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--green-dark);margin-bottom:4px;">Havi díj</div>
+        <div style="font-size:15px;font-weight:500;color:var(--green-dark);">${fee}</div>
+      </div>
+    </div>
+    <!-- 2. sor: születési dátum, anyja neve, telefon -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem;">
+      <div>
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Születési dátum</div>
+        <div style="font-size:14px;color:var(--charcoal);">${child.birthdate || '—'}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Anyja neve</div>
+        <div style="font-size:14px;color:var(--charcoal);">${child.parentName || '—'}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Telefonszám</div>
+        <div style="font-size:14px;color:var(--charcoal);">${child.parentPhone || '—'}</div>
+      </div>
+    </div>
+    <!-- 3. sor: email, számlázási cím -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-bottom:1.25rem;">
+      <div>
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Email cím</div>
+        <div style="font-size:14px;color:var(--charcoal);">${child.parentEmail || '—'}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Számlázási cím</div>
+        <div style="font-size:14px;color:var(--charcoal);">${child.billing || '—'}</div>
+      </div>
+    </div>
+    <!-- 4. sor: stílusok -->
+    <div style="background:var(--ivory);padding:1rem;border:1px solid var(--border-lt);">
+      <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-soft);margin-bottom:6px;">Stílusok</div>
+      <div style="font-size:14px;color:var(--charcoal);">${styles}</div>
+    </div>`;
+
+  // Set button actions
+  document.getElementById('profileEditBtn').onclick = () => { closeModal('profileModal'); openEditModal(id); };
+  document.getElementById('profileQrBtn').onclick = () => { closeModal('profileModal'); printChildQR(id); };
+  document.getElementById('profileDeleteBtn').onclick = () => { closeModal('profileModal'); deleteChild(id); };
+
+  document.getElementById('profileModal').classList.add('show');
 }
 
 // TOAST
