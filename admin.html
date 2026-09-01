@@ -913,9 +913,18 @@ function updateDate() {
   document.getElementById('statDay').textContent = days[now.getDay()];
 }
 
+// A `months` tömb egy tanév hónapjait sorolja fel (szeptembertől májusig),
+// NEM a jelen pillanat szerinti sorrendben — ezért a tömb UTOLSÓ eleme
+// (`months[months.length-1]`, azaz "05") tévesen lett eddig "aktuális
+// hónapnak" használva. Emiatt a fizetési kimutatás rossz hónapot nézett.
+function getCurrentPaymentMonth() {
+  const now = String(new Date().getMonth() + 1).padStart(2, '0');
+  return months.includes(now) ? now : months[0];
+}
+
 function renderStats() {
-  const currentMonth = months[months.length - 1];
-  const unpaid = children.filter(c => c.payment[currentMonth] === 'unpaid').length;
+  const currentMonth = getCurrentPaymentMonth();
+  const unpaid = children.filter(c => (c.payment[currentMonth] || 'unpaid') === 'unpaid').length;
   const hogos = getHogos().length;
   document.getElementById('statTotal').textContent = children.length;
   document.getElementById('statUnpaid').textContent = unpaid;
@@ -934,8 +943,8 @@ function getHogos() {
 }
 
 function renderDashUnpaid() {
-  const currentMonth = months[months.length - 1];
-  const unpaid = children.filter(c => c.payment[currentMonth] === 'unpaid');
+  const currentMonth = getCurrentPaymentMonth();
+  const unpaid = children.filter(c => (c.payment[currentMonth] || 'unpaid') === 'unpaid');
   const el = document.getElementById('dashUnpaidList');
   if (unpaid.length === 0) {
     el.innerHTML = '<div style="background:white;border:1px solid var(--border-lt);padding:1.25rem;color:var(--text-soft);font-size:13px;font-style:italic;">Mindenki fizetett ezen a hónapon. 🎉</div>';
@@ -1333,7 +1342,7 @@ function saveNewChild() {
     billing: '', childPhone: '', childEmail: '', profileComplete: false,
     monthlyFee: 0,
     styles: [],
-    payment: { [months[months.length-1]]: 'unpaid' },
+    payment: { [getCurrentPaymentMonth()]: 'unpaid' },
     attendance: {}
   };
   children.push(child);
@@ -1429,7 +1438,7 @@ async function sendPaymentReminders() {
   const currentMonth = monthSel ? monthSel.value : months[0];
   const monthName = {'09':'Szeptember','10':'Október','11':'November','12':'December','01':'Január','02':'Február','03':'Március','04':'Április','05':'Május'}[currentMonth] || currentMonth;
   
-  const unpaid = children.filter(c => c.payment && c.payment[currentMonth] === 'unpaid' && c.parentEmail);
+  const unpaid = children.filter(c => c.payment && (c.payment[currentMonth] || 'unpaid') === 'unpaid' && c.parentEmail);
   
   if (unpaid.length === 0) { 
     showToast('Mindenki fizetett! Nem kell emlékeztetőt küldeni.'); 
