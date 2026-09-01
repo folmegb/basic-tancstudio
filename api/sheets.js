@@ -5,9 +5,13 @@ const SHEET_ID = process.env.SHEET_ID || '1I283wgYhF5L7FxF4hLyWwCe0kE1FHB1puNaPk
 
 const credentials = {
   client_email: process.env.GOOGLE_CLIENT_EMAIL,
-  // A Vercel env-változóban a sortörések \n formában vannak elmentve —
-  // ezeket vissza kell alakítani valódi sortörésre, különben a kulcs nem érvényes.
-  private_key: (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+  // A base64-kódolt változatot preferáljuk (GOOGLE_PRIVATE_KEY_B64), mert
+  // abban nincs sortörés vagy speciális karakter, ami elromolhatna a Vercel
+  // felületén való beillesztéskor. Ha az nincs beállítva, visszaesünk a
+  // sima GOOGLE_PRIVATE_KEY változóra.
+  private_key: process.env.GOOGLE_PRIVATE_KEY_B64
+    ? Buffer.from(process.env.GOOGLE_PRIVATE_KEY_B64, 'base64').toString('utf8')
+    : (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
 };
 
 async function getAuth() {
