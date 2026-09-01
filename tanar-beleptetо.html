@@ -215,14 +215,26 @@ async function loadChildrenFromSheets() {
 
 async function saveAttendanceToSheets(childName, group, date) {
   try {
-    await fetch(`${API_URL}?action=saveAttendance`, {
+    const resp = await fetch(`${API_URL}?action=saveAttendance`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ childName, group, date })
     });
+    return resp.ok;
   } catch(e) {
     console.error('Sheets mentési hiba:', e);
+    return false;
   }
+}
+
+// Ugyanazt a "ÉÉÉÉ.HH.NN" dátumformátumot adja vissza, amit az admin felület
+// is használ a jelenléti táblázat oszlopfejléceihez.
+function todayDateString() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}.${mm}.${dd}`;
 }
 
 // DEMO adatbázis - fallback ha nincs Sheets kapcsolat
@@ -303,8 +315,13 @@ function onScanSuccess(qrCode) {
   updateLog();
   showSuccess(child.name, child.group, time);
 
-  // TODO: Google Sheets mentés
-  // saveToSheets(child.name, child.group, new Date());
+  // Mentés Google Sheets-be
+  saveAttendanceToSheets(child.name, child.group, todayDateString()).then(ok => {
+    if (!ok) {
+      document.getElementById('resultMsg').textContent =
+        'Bejelentkezve, DE a mentés a Sheets-be nem sikerült — ellenőrizd az internetkapcsolatot!';
+    }
+  });
 }
 
 function showSuccess(name, group, time) {
