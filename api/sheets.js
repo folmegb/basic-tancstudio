@@ -67,6 +67,25 @@ export default async function handler(req, res) {
       });
       const rows = existing.data.values || [];
       const rowIdx = rows.findIndex(r => r[2] === c.id);
+
+      // VÉDELEM ID-ÜTKÖZÉS ELLEN: ha ez egy ÚJONNAN felvett gyerek (c.isNew),
+      // de a generált ID már foglalt egy MÁSIK (más nevű) gyerek által a Sheet-ben,
+      // akkor NEM írjuk felül azt a sort — ez korábban pontosan ezt okozta
+      // (egy új gyerek felülírta egy másik meglévő gyerek adatait).
+      if (c.isNew && rowIdx !== -1 && rows[rowIdx][0] && rows[rowIdx][0] !== c.name) {
+        return res.status(200).json({ error: 'ID_UTKOZES', existingName: rows[rowIdx][0] });
+      }
+
+      // VÉDELEM PIN-ÜTKÖZÉS ELLEN: ha ez egy ÚJ gyerek, de a PIN kódja már
+      // foglalt egy másik gyerek által, azt sem engedjük — a szülői belépő
+      // különben rossz gyereket mutatna a PIN alapján.
+      if (c.isNew) {
+        const pinTaken = rows.some((r, i) => i !== rowIdx && r[1] === c.pin);
+        if (pinTaken) {
+          return res.status(200).json({ error: 'PIN_UTKOZES' });
+        }
+      }
+
       const rowData = [[
         c.name, c.pin, c.id, c.group, c.birthdate,
         c.parentName, c.parentPhone, c.parentEmail, c.billing || c.billingAddress || '',
