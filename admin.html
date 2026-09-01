@@ -715,9 +715,19 @@ async function loadChildrenFromSheets() {
 
 async function saveChildToSheets(child) {
   try {
-    await apiCall('saveChild', 'POST', child);
+    const result = await apiCall('saveChild', 'POST', child);
+    if (result && result.error === 'ID_UTKOZES') {
+      children = children.filter(c => c.id !== child.id);
+      renderAll();
+      showToast('⚠️ ID ütközés történt (' + result.existingName + ' már ezt az ID-t használja) — vedd fel újra a gyereket!');
+    } else if (result && result.error === 'PIN_UTKOZES') {
+      children = children.filter(c => c.id !== child.id);
+      renderAll();
+      showToast('⚠️ PIN ütközés történt egy másik gyerekkel — vedd fel újra a gyereket!');
+    }
   } catch(e) {
     console.error('Sheets mentési hiba:', e);
+    showToast('⚠️ Nem sikerült menteni a gyereket, próbáld újra!');
   }
 }
 
@@ -1045,6 +1055,22 @@ let attendanceDates = {}; // { group: [date1, date2, ...] }
 // Attendance data per child per date
 let attendanceData = {}; // { childId: { date: true/false } }
 
+// Egyedi kulcsot ad vissza a gyerekhez, ami a jelenléti/fizetési Sheet sorát azonosítja.
+// Ha két gyereknek ugyanaz a neve UGYANABBAN a csoportban, sorszámmal különbözteti meg
+// őket ( pl. "Kiss Anna (1)", "Kiss Anna (2)" ), mert a Sheet sorai jelenleg csak a
+// néven keresztül vannak azonosítva - azonos név esetén ez korábban összemosta a
+// két gyerek jelenlétét/fizetését. Az azonosítás az ID alapján stabil sorrendben történik,
+// így mindig ugyanaz a gyerek kapja ugyanazt a kulcsot.
+function getAttendanceKey(child) {
+  if (!child) return '';
+  const sameNameSameGroup = children
+    .filter(c => c.name === child.name && c.group === child.group)
+    .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+  if (sameNameSameGroup.length <= 1) return child.name;
+  const idx = sameNameSameGroup.findIndex(c => c.id === child.id);
+  return `${child.name} (${idx + 1})`;
+}
+
 function renderAttendance() {
   const selectedMonth = document.getElementById('attendanceMonthFilter')?.value || months[0];
   const el = document.getElementById('attendanceByGroup');
@@ -1194,13 +1220,38 @@ function openAddModal() {
   document.getElementById('addModal').classList.add('show');
 }
 
-function generateChild() {
+// Következő szabad ID a ténylegesen legmagasabb használt sorszám alapján
+// (nem a lista HOSSZA alapján — az törlés vagy elavult lista esetén ütközött).
+function nextChildId() {
+  let maxNum = 0;
+  children.forEach(c => {
+    const m = /^BASIC-(\d+)$/.exec(c.id || '');
+    if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+  });
+  return 'BASIC-' + String(maxNum + 1).padStart(3, '0');
+}
+
+// Következő szabad PIN — ellenőrzi, hogy egyik meglévő gyereké se legyen már ez.
+function nextChildPin() {
+  const usedPins = new Set(children.map(c => String(c.pin)));
+  let pin;
+  do {
+    pin = String(Math.floor(1000 + Math.random() * 9000));
+  } while (usedPins.has(pin));
+  return pin;
+}
+
+async function generateChild() {
   const name = document.getElementById('newChildName').value.trim();
   const group = document.getElementById('newChildGroup').value;
   if (!name || !group) { showToast('Add meg a nevet és a csoportot!'); return; }
 
-  const pin = String(Math.floor(1000 + Math.random() * 9000));
-  const id = 'BASIC-' + String(children.length + 1).padStart(3, '0');
+  // Frissítjük a listát a Sheets-ből közvetlenül generálás előtt, hogy
+  // biztosan a legfrissebb adatok alapján kapjon egyedi ID-t és PIN-t.
+  await loadChildrenFromSheets();
+
+  const pin = nextChildPin();
+  const id = nextChildId();
 
   newChildData = { id, pin, name, group };
 
@@ -1221,6 +1272,7 @@ function saveNewChild() {
   if (!newChildData) return;
   const child = {
     ...newChildData,
+    isNew: true,
     birthdate: '', parentName: '', parentPhone: '', parentEmail: '',
     billing: '', childPhone: '', childEmail: '', profileComplete: false,
     monthlyFee: 0,
