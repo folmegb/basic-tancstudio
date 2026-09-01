@@ -693,6 +693,38 @@ async function loadAttendanceFromSheets() {
   renderAttendance();
 }
 
+// A fizetési státuszok korábban NEM töltődtek vissza a Sheets-ből — oldal
+// frissítésekor minden pipálás elveszett, csak a munkamenet alatt látszott.
+async function loadPaymentsFromSheets() {
+  try {
+    const data = await apiCall('getPayments');
+    const rows = data.values || [];
+    const headers = rows[0] || [];
+    const monthCols = headers
+      .map((h, i) => ({ i, month: (h || '').toString().replace('.', '').trim() }))
+      .filter(x => x.i >= 2 && x.month);
+
+    children.forEach(child => {
+      const key = getPaymentKey(child);
+      const row = rows.find((r, i) => i > 0 && r[0] === key)
+        || rows.find((r, i) => i > 0 && r[0] === child.name); // régi, sima nevű sorok
+      const payment = {};
+      if (row) {
+        monthCols.forEach(({ i, month }) => {
+          payment[month] = row[i] === 'X' ? 'paid' : 'unpaid';
+        });
+      }
+      child.payment = payment;
+    });
+  } catch(e) {
+    console.error('Fizetések betöltési hiba:', e);
+  }
+  renderPayment();
+  renderStats();
+  renderDashUnpaid();
+  renderPaymentSummary();
+}
+
 async function loadChildrenFromSheets() {
   try {
     const data = await apiCall('getChildren');
@@ -803,13 +835,16 @@ let editingChildId = null;
 let newChildData = null;
 
 // LOGIN
-function showDashboard() {
+async function showDashboard() {
   document.getElementById('loginWrap').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('logoutBtn').style.display = 'block';
   renderAll();
-  loadChildrenFromSheets();
+  // A gyereklistának be KELL töltődnie előbb, mert a jelenlét és a
+  // fizetés betöltése is a `children` tömbtől függ (csoport, egyedi kulcs).
+  await loadChildrenFromSheets();
   loadAttendanceFromSheets();
+  loadPaymentsFromSheets();
   loadGalaBookingsFromSheets();
   loadAbsences();
 }
@@ -1591,7 +1626,8 @@ function toggleGalaPaid(childName) {
   galaBookings.forEach(b => { if (b.childName === childName) b.paid = newStatus; });
   renderGala();
   showToast('Fizetési státusz frissítve!');
-  // TODO: Google Sheets mentés
+  apiCall('saveGalaPaid', 'POST', { childName, paid: newStatus })
+    .catch(e => console.error('Gála fizetés mentési hiba:', e));
 }
 
 // WEBOLDAL SZERKESZTÉS
