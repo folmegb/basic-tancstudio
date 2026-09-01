@@ -677,7 +677,11 @@ async function loadAttendanceFromSheets() {
         attendanceDates[group] = data.dates.filter(Boolean);
         // Map attendance by childId
         children.filter(c => c.group === group).forEach(c => {
-          if (data.attendance[c.name]) {
+          const key = getAttendanceKey(c);
+          if (data.attendance[key]) {
+            attendanceData[c.id] = data.attendance[key];
+          } else if (data.attendance[c.name]) {
+            // Régebbi, még sima néven mentett bejegyzések (visszamenőleges kompatibilitás)
             attendanceData[c.id] = data.attendance[c.name];
           }
         });
@@ -1034,7 +1038,7 @@ function togglePayment(childId, month) {
   showToast('Fizetési státusz frissítve!');
   // Mentés Google Sheets-be
   apiCall('savePayment', 'POST', {
-    childName: child.name,
+    childName: getPaymentKey(child),
     childGroup: child.group,
     month: month,
     status: child.payment[month]
@@ -1068,6 +1072,19 @@ function getAttendanceKey(child) {
     .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
   if (sameNameSameGroup.length <= 1) return child.name;
   const idx = sameNameSameGroup.findIndex(c => c.id === child.id);
+  return `${child.name} (${idx + 1})`;
+}
+
+// A "Fizetések" munkalap NEM csoportonként külön fül, hanem egyetlen közös
+// tábla mindenkinek — ezért itt a teljes névegyezést nézzük csoporttól
+// függetlenül, nem csak csoporton belül, mint a jelenlétnél.
+function getPaymentKey(child) {
+  if (!child) return '';
+  const sameName = children
+    .filter(c => c.name === child.name)
+    .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+  if (sameName.length <= 1) return child.name;
+  const idx = sameName.findIndex(c => c.id === child.id);
   return `${child.name} (${idx + 1})`;
 }
 
@@ -1147,7 +1164,7 @@ function toggleAttendanceDate(childId, date) {
   showToast('Jelenlét frissítve!');
   if (attendanceData[childId][date]) {
     apiCall('saveAttendance', 'POST', {
-      childName: child.name,
+      childName: getAttendanceKey(child),
       group: child.group,
       date: date
     }).catch(e => console.error('Jelenlét mentési hiba:', e));
