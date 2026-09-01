@@ -205,12 +205,25 @@ async function loadChildrenFromSheets() {
     if (data.children) {
       sheetsChildren = {};
       data.children.forEach(c => {
-        sheetsChildren[c.id] = { name: c.name, group: c.group };
+        sheetsChildren[c.id] = { id: c.id, name: c.name, group: c.group };
       });
     }
   } catch(e) {
     console.error('Sheets betöltési hiba:', e);
   }
+}
+
+// Ugyanaz a logika, mint az admin felületen: ha két gyereknek azonos a neve
+// UGYANABBAN a csoportban, sorszámmal különbözteti meg őket a jelenléti sorban,
+// hogy a két gyerek jelenléte ne keveredjen össze.
+function getAttendanceKey(child) {
+  if (!child) return '';
+  const sameNameSameGroup = Object.values(sheetsChildren)
+    .filter(c => c.name === child.name && c.group === child.group)
+    .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+  if (sameNameSameGroup.length <= 1) return child.name;
+  const idx = sameNameSameGroup.findIndex(c => c.id === child.id);
+  return `${child.name} (${idx + 1})`;
 }
 
 async function saveAttendanceToSheets(childName, group, date) {
@@ -297,7 +310,7 @@ function onScanSuccess(qrCode) {
   lastScanned = qrCode;
   lastScannedTime = now;
 
-  const child = sheetsChildren[qrCode] || children[qrCode];
+  const child = sheetsChildren[qrCode] || (children[qrCode] ? { id: qrCode, ...children[qrCode] } : null);
   const time = new Date().toLocaleTimeString('hu-HU', { hour:'2-digit', minute:'2-digit' });
 
   if (!child) {
@@ -316,7 +329,7 @@ function onScanSuccess(qrCode) {
   showSuccess(child.name, child.group, time);
 
   // Mentés Google Sheets-be
-  saveAttendanceToSheets(child.name, child.group, todayDateString()).then(ok => {
+  saveAttendanceToSheets(getAttendanceKey(child), child.group, todayDateString()).then(ok => {
     if (!ok) {
       document.getElementById('resultMsg').textContent =
         'Bejelentkezve, DE a mentés a Sheets-be nem sikerült — ellenőrizd az internetkapcsolatot!';
