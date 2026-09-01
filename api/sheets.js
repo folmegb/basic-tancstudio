@@ -1,11 +1,13 @@
 const { google } = require('googleapis');
 const fetch = globalThis.fetch || require('node-fetch');
 
-const SHEET_ID = '1I283wgYhF5L7FxF4hLyWwCe0kE1FHB1puNaPk_QeuyE';
+const SHEET_ID = process.env.SHEET_ID || '1I283wgYhF5L7FxF4hLyWwCe0kE1FHB1puNaPk_QeuyE';
 
 const credentials = {
-  client_email: 'basic01@basic01-505212.iam.gserviceaccount.com',
-  private_key: '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDNnmVLeFflKNZR\niVFv5eoBzkOxiR8J9s923McuU3z7HWhSPzmNzEpm2mYjj/GM+09d/FwDfFjlznOg\nuwwMhHLF0XqetdM3UB94fz2KKpA9ibKejAsfBpl8v5GvSAJbZSPFTc4jetMKcGaM\newYBhmq77VCffkVqmNlFgOILnuJi6Ft7TxTbiuzG223jgJatHPYSiyU4IUloXaUD\nJjETButiFSnKsMWFLGyEJQxbQ6Z8+DLHPoJVFB9UfMR9ypXdNvg/tKydqkqU6EhF\nuJKsf2edp9n9WUe0jGFwFQiVFIhF+BOgxtNp/P8u/j2qj9gXTIjvNRZycG4kL/iC\nwKJgbqgNAgMBAAECggEATKyovDxbll4kkVIh9panLNY0QwNNekM5eOr6MWm7nM6K\nBMWD2j8YbYM6fD9khTx/i54b18bqRYO3dXPamd5YCDFFxuIpqaIsohvcoGWf1PrA\ni0PQr9ifqrerBVBWZKtx69TILk3SXb2tV+xWQIJV0c88dcU58Haf6r2VTV0JsXSl\nhKskjhMZmy2vOV0YI3ot68T+f90sc7cYPHVIf+4DNgumYkOv+C2ywKMYIISZatah\nFodArjbDusJIKoKF+LDhtJOzYiV+WK4j4txvtxP/uyoeSnp4i6MuI6Od5Sd5eefA\nRbiaSgtsNiw4Y6b6bNBdw9oNhWKJB+RGXvudSTR/xwKBgQD2FUc6DO7GRkgnzPQf\nFnDltg/xmvNgAiW2yRx0XBtNLm0qJaJXTWuMgtgo+FwY1Ax4Oft8G0hxUxNaBVYD\nUsI5pKqaojyOsVUImpps1eqmxAmkcZM6ugN2WKj+rb5dhA1lmuDMm7kgiJEtMdtx\nxlMG1jELqxGqoNNXrg7jfrkDZwKBgQDV56pvEmN7hZsJd5fysXhDxkGYYzpyguY3\n/ODAytwk/zvzvuiaFEREYYHCaLSXgdunueCvfFBu9w6N3Ql2gxKPlnkdInn9dl2H\n4oyunnPKJSl6eOepDcqQYKQ6SpYAgbjLbsM47ambr5e1YpURO6o1pEKiGZsQxjeR\nt7GUmEpkawKBgQCOb/aQZVf4MEonr3xGWkjyzZUg9d2VXujRiksMFxw+ancJhEsZ\nWVi9NidEX61/OY4WMQmd5nTiE4IKAzisJ8UAdI3Df9Cpj392wXZNNOzjpmkmZA8i\nWPUUFXGMKKkdnAfdHe6swB5B9IqDrG4mxvLb7DLrXBOXvgtWnwtDJuCUVQKBgD3k\nmZEn/fcY0qJro2DK7ySVMhe45omJzLl4h0Phrs9ZtuwxWjZzFMnAeP5as55/KaKf\nix7b1p41CFYOFhXfmThI7uR6PFgVrryJ1fEU0iY0mIrifw2QewNJo1tmh37ACkt6\n0iwfwIrWxQvr6XwiCn8Y91rWE+NHp36Xa1+2rRffAoGAEfucI17tgahMMkVpG9+c\nTqm9uOkN0qgVsDQ5zWPLnhZprKWV74wjL68DJOoYOXdFfPYLGZrYLNaIn0BSq31C\nxBtgP4uZ4KSUsGEioZkXb2sCw8FGjvuBp3725+d7Uebgy12H3Sf/T3O9yPKxTVdU\nPkYqXqF+8N5DKewlS1cpw+w=\n-----END PRIVATE KEY-----\n',
+  client_email: process.env.GOOGLE_CLIENT_EMAIL,
+  // A Vercel env-változóban a sortörések \n formában vannak elmentve —
+  // ezeket vissza kell alakítani valódi sortörésre, különben a kulcs nem érvényes.
+  private_key: (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
 };
 
 async function getAuth() {
@@ -496,7 +498,7 @@ export default async function handler(req, res) {
     if (action === 'getGalaBookings') {
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gála foglalások!A2:F1000',
+        range: 'Gála foglalások!A2:G1000',
       });
       const rows = response.data.values || [];
       const bookings = rows.filter(r => r[1]).map(r => ({
@@ -506,14 +508,53 @@ export default async function handler(req, res) {
         seats: r[3] ? r[3].split(', ') : [],
         count: parseInt(r[4]) || 0,
         level: r[5] || '',
-        paid: false
+        paid: r[6] === 'X'
       }));
       return res.status(200).json({ bookings });
+    }
+
+    // SAVE GALA PAID STATUS (korábban ez teljesen hiányzott — a pipálás
+    // csak a böngészőben élt, frissítéskor elveszett)
+    if (action === 'saveGalaPaid' && req.method === 'POST') {
+      const { childName, paid } = req.body;
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: 'Gála foglalások!A2:G1000',
+      });
+      const rows = response.data.values || [];
+      const rowIdx = rows.findIndex(r => r[1] === childName);
+      if (rowIdx !== -1) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SHEET_ID,
+          range: `Gála foglalások!G${rowIdx + 2}`,
+          valueInputOption: 'RAW',
+          resource: { values: [[paid ? 'X' : '']] },
+        });
+      }
+      return res.status(200).json({ success: true });
     }
 
     // SAVE GALA BOOKING
     if (action === 'saveGalaBooking' && req.method === 'POST') {
       const { childName, email, seats } = req.body;
+
+      // Frissen, közvetlenül mentés előtt ellenőrizzük, foglalt-e már bármelyik
+      // kért szék — ez akadályozza meg, hogy két szülő majdnem egyszerre
+      // ugyanazt a helyet foglalja le (korábban ez nem volt ellenőrizve).
+      const existing = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: 'Gála foglalások!D2:D1000',
+      });
+      const existingRows = existing.data.values || [];
+      const takenSeats = new Set();
+      existingRows.forEach(row => {
+        if (row[0]) row[0].split(', ').forEach(s => takenSeats.add(s.trim()));
+      });
+      const conflictSeats = seats.filter(s => takenSeats.has(s));
+      if (conflictSeats.length > 0) {
+        return res.status(200).json({ error: 'SZEKEK_FOGLALTAK', conflictSeats });
+      }
+
       await sheets.spreadsheets.values.append({
         spreadsheetId: SHEET_ID,
         range: 'Gála foglalások!A2',
