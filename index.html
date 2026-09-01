@@ -295,7 +295,7 @@ footer a:hover { color: var(--green-mid); }
 <div class="stats-bar">
   <div class="stats-inner">
     <div class="stat-item"><div class="stat-number">10+</div><div class="stat-label">Év tapasztalat</div></div>
-    <div class="stat-item"><div class="stat-number">4</div><div class="stat-label">Szakképzett oktató</div></div>
+    <div class="stat-item"><div class="stat-number" id="statTeacherCount">4</div><div class="stat-label">Szakképzett oktató</div></div>
     <div class="stat-item"><div class="stat-number">2</div><div class="stat-label">Helyszín</div></div>
   </div>
 </div>
@@ -499,6 +499,10 @@ async function loadSiteData() {
             <div class="teacher-quote">"${t.quote}"<div class="teacher-source">— ${t.source}</div></div>
           </div>`).join('');
       }
+      // A zöld sávban lévő oktatószám korábban fixen "4" volt beírva, függetlenül
+      // attól, hány oktató van ténylegesen felvéve — mostantól a valós számot mutatja.
+      const statEl = document.getElementById('statTeacherCount');
+      if (statEl) statEl.textContent = data.data.teachers.length;
     }
 
     // KOROSZTÁLYOK frissítése
