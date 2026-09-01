@@ -655,6 +655,10 @@ async function apiCall(action, method = 'GET', body = null) {
 async function refreshFromSheets() {
   showToast('Frissítés...');
   await loadChildrenFromSheets();
+  await loadAttendanceFromSheets();
+  await loadPaymentsFromSheets();
+  await loadGalaBookingsFromSheets();
+  await loadAbsences();
 }
 
 async function loadGalaBookingsFromSheets() {
