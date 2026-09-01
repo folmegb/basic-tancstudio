@@ -504,7 +504,7 @@ function showForm() {
   document.getElementById('bookingForm').scrollIntoView({behavior:'smooth'});
 }
 
-function submitBooking() {
+async function submitBooking() {
   const name = document.getElementById('childName').value.trim();
   const email = document.getElementById('emailAddr').value.trim();
   if (!name || !email) { alert('Kérlek töltsd ki a kötelező mezőket!'); return; }
@@ -514,6 +514,42 @@ function submitBooking() {
     const el = document.querySelector(`.seat[data-id="${id}"]`);
     return el ? el.dataset.label : id;
   });
+
+  const submitBtn = document.querySelector('#bookingForm button[onclick="submitBooking()"]');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Foglalás...'; }
+
+  // Mentés Google Sheets-be — MEGVÁRJUK a választ, mielőtt sikeresnek
+  // jelezzük, mert a szerver frissen ellenőrzi, nem foglalta-e le közben
+  // valaki más ugyanazt a helyet.
+  let result;
+  try {
+    const resp = await fetch('/api/sheets?action=saveGalaBooking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ childName: name, email, seats: seatLabels })
+    });
+    result = await resp.json();
+  } catch(e) {
+    console.error('Sheets mentési hiba:', e);
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Foglalás véglegesítése'; }
+    alert('Hiba történt a foglalás mentésekor, próbáld újra!');
+    return;
+  }
+
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Foglalás véglegesítése'; }
+
+  if (result && result.error === 'SZEKEK_FOGLALTAK') {
+    // Időközben valaki más lefoglalta ugyanazt a helyet — frissítjük a
+    // térképet, és megkérjük a szülőt, válasszon másikat.
+    await loadBookedSeats();
+    selectedSeats.forEach(id => {
+      document.querySelectorAll(`.seat[data-id="${id}"]`).forEach(el => el.classList.remove('selected'));
+    });
+    selectedSeats.clear();
+    updatePanel();
+    alert('Sajnos időközben valaki más lefoglalta a kiválasztott hely(ek) egy részét: ' + result.conflictSeats.join(', ') + '. Kérlek válassz másik helyet!');
+    return;
+  }
 
   selectedSeats.forEach(id => {
     takenSeats.add(id);
@@ -527,12 +563,6 @@ function submitBooking() {
   document.getElementById('successSeats').innerHTML = `<strong>${name}</strong><br>${seatLabels.join('<br>')}`;
   document.getElementById('successOverlay').classList.add('show');
 
-  // Mentés Google Sheets-be
-  fetch('/api/sheets?action=saveGalaBooking', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ childName: name, email, seats: seatLabels })
-  }).catch(e => console.error('Sheets mentési hiba:', e));
   selectedSeats.clear();
   updatePanel();
   document.getElementById('bookingForm').classList.remove('show');
