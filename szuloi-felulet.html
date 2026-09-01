@@ -339,17 +339,32 @@ let editMode = false;
 
 const API_URL = '/api/sheets';
 
+let allChildrenCache = [];
+
 async function loadChildFromSheets(pin) {
   try {
     const data = await fetch(`${API_URL}?action=getChildren`);
     const json = await data.json();
     if (json.children) {
+      allChildrenCache = json.children;
       return json.children.find(c => String(c.pin) === String(pin)) || null;
     }
   } catch(e) {
     console.error('Sheets betöltési hiba:', e);
     return null;
   }
+}
+
+// Ugyanaz a logika, mint az admin felületen: ha két gyereknek azonos a neve,
+// sorszámmal különbözteti meg őket, hogy ne keveredjen össze a fizetési adatuk.
+function getPaymentKey(child) {
+  if (!child) return '';
+  const sameName = allChildrenCache
+    .filter(c => c.name === child.name)
+    .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+  if (sameName.length <= 1) return child.name;
+  const idx = sameName.findIndex(c => c.id === child.id);
+  return `${child.name} (${idx + 1})`;
 }
 
 async function saveProfileToSheets(child) {
@@ -548,7 +563,7 @@ async function renderPayment(child) {
   // Load payments from Sheets
   let payments = {};
   try {
-    const resp = await fetch(`/api/sheets?action=getChildPayments&childName=${encodeURIComponent(child.name)}`);
+    const resp = await fetch(`/api/sheets?action=getChildPayments&childName=${encodeURIComponent(getPaymentKey(child))}`);
     const data = await resp.json();
     payments = data.payments || {};
   } catch(e) {
