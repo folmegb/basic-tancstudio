@@ -944,7 +944,8 @@ function getHogos() {
 
 function renderDashUnpaid() {
   const currentMonth = getCurrentPaymentMonth();
-  const unpaid = children.filter(c => (c.payment[currentMonth] || 'unpaid') === 'unpaid');
+  const unpaid = children.filter(c => (c.payment[currentMonth] || 'unpaid') === 'unpaid')
+    .sort((a, b) => a.name.localeCompare(b.name, 'hu'));
   const el = document.getElementById('dashUnpaidList');
   if (unpaid.length === 0) {
     el.innerHTML = '<div style="background:white;border:1px solid var(--border-lt);padding:1.25rem;color:var(--text-soft);font-size:13px;font-style:italic;">Mindenki fizetett ezen a hónapon. 🎉</div>';
