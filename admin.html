@@ -1208,16 +1208,18 @@ function toggleAttendanceDate(childId, date) {
   if (!child) return;
   if (!attendanceData[childId]) attendanceData[childId] = {};
   attendanceData[childId][date] = !attendanceData[childId][date];
+  const isPresent = attendanceData[childId][date];
   renderAttendance();
   renderHogos();
   showToast('Jelenlét frissítve!');
-  if (attendanceData[childId][date]) {
-    apiCall('saveAttendance', 'POST', {
-      childName: getAttendanceKey(child),
-      group: child.group,
-      date: date
-    }).catch(e => console.error('Jelenlét mentési hiba:', e));
-  }
+  // Korábban ez csak bepipáláskor futott le — kipipálás (jelenlét visszavétele)
+  // esetén a Sheet-ben megmaradt az X, és újratöltéskor visszatért a pipa.
+  apiCall('saveAttendance', 'POST', {
+    childName: getAttendanceKey(child),
+    group: child.group,
+    date: date,
+    present: isPresent
+  }).catch(e => console.error('Jelenlét mentési hiba:', e));
 }
 
 function openAddAttendanceDate() {
