@@ -286,7 +286,7 @@ export default async function handler(req, res) {
 
     // SAVE ATTENDANCE
     if (action === 'saveAttendance' && req.method === 'POST') {
-      const { childName, group, date } = req.body;
+      const { childName, group, date, present } = req.body;
       const sheetName = group;
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
@@ -299,7 +299,10 @@ export default async function handler(req, res) {
       // Add date column if not exists
       if (dateCol === -1) {
         dateCol = headers.length;
-        const col = String.fromCharCode(65 + dateCol + 1);
+        // JAVÍTVA: itt korábban egy felesleges "+1" volt a képletben, ami miatt
+        // minden UGYANAZON a napon történő MÁSODIK (és további) bejelentkezés
+        // egy oszloppal arrébb, dátum-fejléc nélkül íródott be a Sheet-be.
+        const col = String.fromCharCode(65 + dateCol);
         await sheets.spreadsheets.values.update({
           spreadsheetId: SHEET_ID,
           range: `${sheetName}!${col}2`,
@@ -320,12 +323,15 @@ export default async function handler(req, res) {
         });
       }
 
-      const col = String.fromCharCode(65 + dateCol + 1);
+      const col = String.fromCharCode(65 + dateCol);
       await sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID,
         range: `${sheetName}!${col}${childRow + 1}`,
         valueInputOption: 'RAW',
-        resource: { values: [['X']] },
+        // present === false esetén (pipa visszavétele az adminon) kiürítjük a
+        // cellát, egyébként X-et írunk. Korábban ez az eset egyáltalán nem
+        // volt kezelve, ezért a visszavett pipa sosem törlődött a Sheet-ből.
+        resource: { values: [[present === false ? '' : 'X']] },
       });
       return res.status(200).json({ success: true });
     }
