@@ -189,6 +189,7 @@ let lastScannedTime = 0;
 
 const API_URL = '/api/sheets';
 let sheetsChildren = {};
+const groups = ["Mesebalett", "Közepesek", "Péntekiek", "Szombati nagyok"];
 
 async function loadChildrenFromSheets() {
   try {
@@ -367,17 +368,62 @@ function updateLog() {
   const count = checkIns.length;
   document.getElementById('logCount').textContent = count + ' fő';
   document.getElementById('checkInCount').textContent = count;
-  document.getElementById('logList').innerHTML = count === 0
-    ? '<div class="log-empty">Még nincs bejelentkezés ma.</div>'
-    : checkIns.slice().reverse().map(c => `
-        <div class="log-item">
-          <div class="log-dot"></div>
-          <div class="log-info">
-            <div class="log-name">${c.name}</div>
-            <div class="log-group">${c.group}</div>
-          </div>
-          <div class="log-time">${c.time}</div>
-        </div>`).join('');
+
+  if (count === 0) {
+    document.getElementById('logList').innerHTML = '<div class="log-empty">Még nincs bejelentkezés ma.</div>';
+    return;
+  }
+
+  // Csoportonként csoportosítva jelenítjük meg, a groups tömb sorrendjében,
+  // csak azokat a csoportokat mutatva, amelyikben ma tényleg volt bejelentkezés.
+  const byGroup = {};
+  checkIns.forEach(c => {
+    if (!byGroup[c.group]) byGroup[c.group] = [];
+    byGroup[c.group].push(c);
+  });
+  const orderedGroups = groups.filter(g => byGroup[g] && byGroup[g].length > 0);
+
+  document.getElementById('logList').innerHTML = orderedGroups.map(g => `
+    <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-soft);margin:1rem 0 0.5rem;">${g}</div>
+    ${byGroup[g].slice().reverse().map(c => `
+      <div class="log-item">
+        <div class="log-dot"></div>
+        <div class="log-info">
+          <div class="log-name">${c.name}</div>
+        </div>
+        <div class="log-time">${c.time || ''}</div>
+      </div>`).join('')}
+  `).join('');
+}
+
+// Bejelentkezés (vagy oldal-újratöltés) után visszatöltjük, kik jelentkeztek
+// be MA a Sheets-ből — korábban ez a lista csak a böngésző memóriájában élt,
+// és minden újbóli belépéskor kiürült, holott a Sheets-ben megvolt az adat.
+async function loadTodayCheckIns() {
+  if (Object.keys(sheetsChildren).length === 0) {
+    await loadChildrenFromSheets();
+  }
+  const today = todayDateString();
+  checkIns = [];
+  for (const group of groups) {
+    try {
+      const resp = await fetch(`${API_URL}?action=getAttendance&group=${encodeURIComponent(group)}`);
+      const data = await resp.json();
+      if (data.attendance) {
+        Object.keys(data.attendance).forEach(key => {
+          if (data.attendance[key][today]) {
+            // A kulcs lehet "Név (2)" formátumú, ha két azonos nevű gyerek van
+            // a csoportban — ilyenkor a megjelenítésnél levágjuk a sorszámot.
+            const displayName = key.replace(/\s\(\d+\)$/, '');
+            checkIns.push({ id: null, name: displayName, group, time: '' });
+          }
+        });
+      }
+    } catch(e) {
+      console.error('Mai jelenlét betöltési hiba:', group, e);
+    }
+  }
+  updateLog();
 }
 </script>
 </div><!-- tanarApp -->
@@ -389,6 +435,7 @@ function tanarLogin() {
   if (pass === TANAR_PASSWORD) {
     document.getElementById("loginScreen").style.display = "none";
     document.getElementById("tanarApp").style.display = "block";
+    loadTodayCheckIns();
   } else {
     document.getElementById("tanarLoginError").style.display = "block";
     document.getElementById("tanarPass").value = "";
