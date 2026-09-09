@@ -613,8 +613,16 @@ tr:hover td { background: var(--ivory); }
         <input type="email" class="form-input" id="editParentEmail">
       </div>
       <div class="form-row">
-        <label class="form-label">Számlázási cím</label>
-        <input type="text" class="form-input" id="editBilling">
+        <label class="form-label">Irányítószám <span style="color:var(--text-soft);font-size:11px;">(a számlázáshoz kötelező)</span></label>
+        <input type="text" class="form-input" id="editPostCode" placeholder="pl. 1147" maxlength="4">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Város <span style="color:var(--text-soft);font-size:11px;">(a számlázáshoz kötelező)</span></label>
+        <input type="text" class="form-input" id="editCity" placeholder="pl. Budapest">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Utca, házszám</label>
+        <input type="text" class="form-input" id="editBilling" placeholder="pl. Csömöri út 26. 2/2.">
       </div>
       <div class="form-row">
         <label class="form-label">Havi díj (Ft)</label>
@@ -1117,6 +1125,8 @@ function togglePayment(childId, month) {
         showToast('ℹ️ A Billingo még nincs beállítva — a számla nem készült el.');
       } else if (result && result.error === 'NINCS_HAVIDIJ_MEGADVA') {
         // Csendben kihagyjuk — nincs mit számlázni.
+      } else if (result && result.error === 'HIANYZIK_CIM') {
+        showToast(`⚠️ Nincs számla — hiányzik az irányítószám/város ${result.childName} profiljából. Pótold a Gyerekeknél!`);
       } else if (result && result.error) {
         console.error('Billingo hiba:', result);
         showToast('⚠️ A számla kiállítása nem sikerült, nézd meg a naplót.');
@@ -1375,7 +1385,7 @@ function saveNewChild() {
     ...newChildData,
     isNew: true,
     birthdate: '', parentName: '', parentPhone: '', parentEmail: '',
-    billing: '', childPhone: '', childEmail: '', profileComplete: false,
+    billing: '', postCode: '', city: '', childPhone: '', childEmail: '', profileComplete: false,
     monthlyFee: 0,
     styles: [],
     payment: { [getCurrentPaymentMonth()]: 'unpaid' },
@@ -1423,6 +1433,8 @@ function openEditModal(id) {
   document.getElementById('editParentPhone').value = child.parentPhone || '';
   document.getElementById('editParentEmail').value = child.parentEmail || '';
   document.getElementById('editBilling').value = child.billing || '';
+  document.getElementById('editPostCode').value = child.postCode || '';
+  document.getElementById('editCity').value = child.city || '';
   document.getElementById('editFee').value = child.monthlyFee || 0;
   document.getElementById('editChildPhone').value = child.childPhone || '';
   document.getElementById('editChildEmail').value = child.childEmail || '';
@@ -1439,6 +1451,8 @@ function saveEdit() {
   child.parentPhone = document.getElementById('editParentPhone').value;
   child.parentEmail = document.getElementById('editParentEmail').value;
   child.billing = document.getElementById('editBilling').value;
+  child.postCode = document.getElementById('editPostCode').value;
+  child.city = document.getElementById('editCity').value;
   child.monthlyFee = parseInt(document.getElementById('editFee').value) || 0;
   child.childPhone = document.getElementById('editChildPhone').value;
   child.childEmail = document.getElementById('editChildEmail').value;
@@ -2099,7 +2113,7 @@ function openProfile(id) {
       </div>
       <div>
         <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-soft);margin-bottom:4px;">Számlázási cím</div>
-        <div style="font-size:14px;color:var(--charcoal);">${child.billing || '—'}</div>
+        <div style="font-size:14px;color:var(--charcoal);">${(child.postCode && child.city) ? `${child.postCode} ${child.city}, ${child.billing || ''}` : `<span style="color:var(--red);">Hiányos (nincs irányítószám/város — a számlázáshoz kell!)</span>`}</div>
       </div>
     </div>
     <!-- 4. sor: stílusok -->
