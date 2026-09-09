@@ -398,7 +398,7 @@ export default async function handler(req, res) {
         type: 'invoice',
         fulfillment_date: today,
         due_date: today,
-        payment_method: 'transfer',
+        payment_method: 'wire_transfer',
         language: 'hu',
         currency: 'HUF',
         electronic: false,
