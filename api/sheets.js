@@ -30,6 +30,12 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // Soha ne gyorsítótárazza a böngésző/Vercel a válaszokat — enélkül előfordulhatott,
+  // hogy egy frissen mentett fizetés/jelenlét csak egy kemény oldal-újratöltés után
+  // jelent meg, mert a korábbi (elavult) válasz jött vissza a cache-ből.
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
@@ -284,7 +290,141 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // SAVE ATTENDANCE
+    // CREATE INVOICE (Billingo) — automatikus, NAV-kompatibilis számla kiállítása,
+    // amikor az admin bepipálja egy gyerek havi fizetését.
+    if (action === 'createInvoice' && req.method === 'POST') {
+      const { childId, month } = req.body;
+
+      const BILLINGO_API_KEY = process.env.BILLINGO_API_KEY;
+      const BILLINGO_BLOCK_ID = process.env.BILLINGO_BLOCK_ID;
+      const BILLINGO_BANK_ACCOUNT_ID = process.env.BILLINGO_BANK_ACCOUNT_ID;
+
+      if (!BILLINGO_API_KEY || !BILLINGO_BLOCK_ID) {
+        return res.status(200).json({ error: 'BILLINGO_NINCS_BEALLITVA' });
+      }
+
+      // Gyerek + szülő adatainak kikeresése a Gyerekek lapról
+      const childrenResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: 'Gyerekek!A2:N1000',
+      });
+      const childRow = (childrenResp.data.values || []).find(r => r[2] === childId);
+      if (!childRow) {
+        return res.status(200).json({ error: 'GYEREK_NEM_TALALHATO' });
+      }
+      const childName = childRow[0] || '';
+      const parentName = childRow[5] || childName;
+      const parentEmail = childRow[7] || '';
+      const billingAddress = childRow[8] || '';
+      const monthlyFee = parseInt(childRow[11]) || 0;
+
+      if (!monthlyFee) {
+        return res.status(200).json({ error: 'NINCS_HAVIDIJ_MEGADVA' });
+      }
+
+      const billingoHeaders = {
+        'X-API-KEY': BILLINGO_API_KEY,
+        'Content-Type': 'application/json',
+      };
+
+      // 1. Partner keresése — email alapján, ha van; ha nincs, név alapján
+      // (mivel a Billingo partnerlista tiszta, ez biztonságos)
+      let partnerId = null;
+      const searchTerm = parentEmail || parentName;
+      if (searchTerm) {
+        const searchResp = await fetch(`https://api.billingo.hu/v3/partners?query=${encodeURIComponent(searchTerm)}`, {
+          headers: billingoHeaders,
+        });
+        const searchData = await searchResp.json();
+        if (searchResp.ok && searchData && Array.isArray(searchData.data) && searchData.data.length > 0) {
+          // Név alapú keresésnél csak PONTOS egyezést fogadunk el, hogy ne
+          // keverjünk össze két hasonló nevű, de különböző szülőt.
+          const exact = searchData.data.find(p =>
+            (parentEmail && p.emails && p.emails.includes(parentEmail)) ||
+            (p.name && p.name.trim().toLowerCase() === parentName.trim().toLowerCase())
+          );
+          partnerId = exact ? exact.id : null;
+        }
+      }
+
+      if (!partnerId) {
+        const partnerResp = await fetch('https://api.billingo.hu/v3/partners', {
+          method: 'POST',
+          headers: billingoHeaders,
+          body: JSON.stringify({
+            name: parentName,
+            emails: parentEmail ? [parentEmail] : [],
+            address: billingAddress ? {
+              country_code: 'HU',
+              post_code: '',
+              city: '',
+              address: billingAddress,
+            } : undefined,
+          }),
+        });
+        const partnerData = await partnerResp.json();
+        if (!partnerResp.ok) {
+          return res.status(200).json({ error: 'BILLINGO_PARTNER_HIBA', details: partnerData });
+        }
+        partnerId = partnerData.id;
+      }
+
+      // 2. Számla létrehozása, kifizetettként (mivel az admin csak akkor hívja ezt,
+      // amikor már bepipálta, hogy a szülő fizetett). Nincs automatikus e-mail
+      // kiküldés (electronic: false) — a számla csak elkészül a Billingo-ban.
+      const monthNames = { '09':'szeptember','10':'október','11':'november','12':'december','01':'január','02':'február','03':'március','04':'április','05':'május' };
+      const today = new Date().toISOString().split('T')[0];
+
+      const invoiceBody = {
+        partner_id: partnerId,
+        block_id: parseInt(BILLINGO_BLOCK_ID),
+        ...(BILLINGO_BANK_ACCOUNT_ID ? { bank_account_id: parseInt(BILLINGO_BANK_ACCOUNT_ID) } : {}),
+        type: 'invoice',
+        fulfillment_date: today,
+        due_date: today,
+        payment_method: 'transfer',
+        language: 'hu',
+        currency: 'HUF',
+        electronic: false,
+        paid: true,
+        items: [{
+          name: `Táncoktatás — ${childName} (${monthNames[month] || month})`,
+          unit_price: monthlyFee,
+          unit_price_type: 'gross',
+          quantity: 1,
+          unit: 'hó',
+          vat: 'AAM',
+        }],
+        comment: 'Basic Táncstúdió havi tandíj',
+      };
+
+      const invoiceResp = await fetch('https://api.billingo.hu/v3/documents', {
+        method: 'POST',
+        headers: billingoHeaders,
+        body: JSON.stringify(invoiceBody),
+      });
+      const invoiceData = await invoiceResp.json();
+      if (!invoiceResp.ok) {
+        return res.status(200).json({ error: 'BILLINGO_SZAMLA_HIBA', details: invoiceData });
+      }
+
+      // 3. Számla kiküldése emailben a szülőnek, ha van megadva email cím.
+      // Ez egy külön Billingo végpont — a számla létrehozása önmagában nem küld ki semmit.
+      let emailSent = false;
+      if (parentEmail && invoiceData && invoiceData.id) {
+        const emailResp = await fetch(`https://api.billingo.hu/v3/documents/${invoiceData.id}/emails`, {
+          method: 'POST',
+          headers: billingoHeaders,
+          body: JSON.stringify({ emails: [parentEmail] }),
+        });
+        emailSent = emailResp.ok;
+        if (!emailResp.ok) {
+          console.error('Billingo email küldési hiba:', await emailResp.text());
+        }
+      }
+
+      return res.status(200).json({ success: true, invoice: invoiceData, emailSent });
+    }
     if (action === 'saveAttendance' && req.method === 'POST') {
       const { childName, group, date, present } = req.body;
       const sheetName = group;
