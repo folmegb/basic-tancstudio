@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     if (action === 'getChildren') {
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:N1000',
+        range: 'Gyerekek!A2:P1000',
       });
       const rows = response.data.values || [];
       const children = rows.filter(r => r[0]).map(r => ({
@@ -65,6 +65,8 @@ export default async function handler(req, res) {
         monthlyFee: parseInt(r[11]) || 0,
         styles: r[12] ? r[12].split(',') : [],
         profileComplete: r[13] === 'Igen',
+        postCode: r[14] || '',
+        city: r[15] || '',
       }));
       return res.status(200).json({ children });
     }
@@ -75,7 +77,7 @@ export default async function handler(req, res) {
       // Find if child exists (by ID)
       const existing = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:N1000',
+        range: 'Gyerekek!A2:P1000',
       });
       const rows = existing.data.values || [];
       const rowIdx = rows.findIndex(r => r[2] === c.id);
@@ -103,7 +105,8 @@ export default async function handler(req, res) {
         c.parentName, c.parentPhone, c.parentEmail, c.billing || c.billingAddress || '',
         c.childPhone, c.childEmail, c.monthlyFee,
         (c.styles || []).join(','),
-        c.profileComplete ? 'Igen' : 'Nem'
+        c.profileComplete ? 'Igen' : 'Nem',
+        c.postCode || '', c.city || ''
       ]];
 
       if (rowIdx === -1) {
@@ -118,7 +121,7 @@ export default async function handler(req, res) {
         // Update existing row
         await sheets.spreadsheets.values.update({
           spreadsheetId: SHEET_ID,
-          range: `Gyerekek!A${rowIdx + 2}:N${rowIdx + 2}`,
+          range: `Gyerekek!A${rowIdx + 2}:P${rowIdx + 2}`,
           valueInputOption: 'RAW',
           resource: { values: rowData },
         });
@@ -133,14 +136,14 @@ export default async function handler(req, res) {
       // Delete from Gyerekek sheet
       const existing = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:N1000',
+        range: 'Gyerekek!A2:P1000',
       });
       const rows = existing.data.values || [];
       const rowIdx = rows.findIndex(r => r[2] === id);
       if (rowIdx !== -1) {
         await sheets.spreadsheets.values.clear({
           spreadsheetId: SHEET_ID,
-          range: `Gyerekek!A${rowIdx + 2}:N${rowIdx + 2}`,
+          range: `Gyerekek!A${rowIdx + 2}:P${rowIdx + 2}`,
         });
       }
 
@@ -306,7 +309,7 @@ export default async function handler(req, res) {
       // Gyerek + szülő adatainak kikeresése a Gyerekek lapról
       const childrenResp = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:N1000',
+        range: 'Gyerekek!A2:P1000',
       });
       const childRow = (childrenResp.data.values || []).find(r => r[2] === childId);
       if (!childRow) {
@@ -315,12 +318,29 @@ export default async function handler(req, res) {
       const childName = childRow[0] || '';
       const parentName = childRow[5] || childName;
       const parentEmail = childRow[7] || '';
-      const billingAddress = childRow[8] || '';
+      const billingStreet = childRow[8] || '';
       const monthlyFee = parseInt(childRow[11]) || 0;
+      const postCode = childRow[14] || '';
+      const city = childRow[15] || '';
 
       if (!monthlyFee) {
         return res.status(200).json({ error: 'NINCS_HAVIDIJ_MEGADVA' });
       }
+
+      // A Billingo kötelezően kéri az irányítószámot és a várost külön mezőben —
+      // ezek nélkül a partner létrehozása elutasításra kerül. Ha ezek hiányoznak
+      // a gyerek profiljából, itt megállunk, és pontosan megmondjuk kinél kell
+      // pótolni, ahelyett hogy cím nélkül (érvénytelenül) próbálnánk számlázni.
+      if (!postCode || !city) {
+        return res.status(200).json({ error: 'HIANYZIK_CIM', childName });
+      }
+
+      const parsedAddress = {
+        country_code: 'HU',
+        post_code: postCode,
+        city: city,
+        address: billingStreet || city,
+      };
 
       const billingoHeaders = {
         'X-API-KEY': BILLINGO_API_KEY,
@@ -354,16 +374,12 @@ export default async function handler(req, res) {
           body: JSON.stringify({
             name: parentName,
             emails: parentEmail ? [parentEmail] : [],
-            address: billingAddress ? {
-              country_code: 'HU',
-              post_code: '',
-              city: '',
-              address: billingAddress,
-            } : undefined,
+            address: parsedAddress || undefined,
           }),
         });
         const partnerData = await partnerResp.json();
         if (!partnerResp.ok) {
+          console.error('Billingo partner hiba:', JSON.stringify(partnerData));
           return res.status(200).json({ error: 'BILLINGO_PARTNER_HIBA', details: partnerData });
         }
         partnerId = partnerData.id;
@@ -405,6 +421,7 @@ export default async function handler(req, res) {
       });
       const invoiceData = await invoiceResp.json();
       if (!invoiceResp.ok) {
+        console.error('Billingo számla hiba:', JSON.stringify(invoiceData));
         return res.status(200).json({ error: 'BILLINGO_SZAMLA_HIBA', details: invoiceData });
       }
 
