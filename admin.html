@@ -645,7 +645,7 @@ const API_URL = '/api/sheets';
 
 async function apiCall(action, method = 'GET', body = null) {
   const url = `${API_URL}?action=${action}`;
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const opts = { method, headers: { 'Content-Type': 'application/json' }, cache: 'no-store' };
   if (body) opts.body = JSON.stringify(body);
   const resp = await fetch(url, opts);
   if (!resp.ok) throw new Error(`API hiba: ${resp.status}`);
@@ -699,7 +699,7 @@ async function loadAttendanceFromSheets() {
 
 // A fizetési státuszok korábban NEM töltődtek vissza a Sheets-ből — oldal
 // frissítésekor minden pipálás elveszett, csak a munkamenet alatt látszott.
-async function loadPaymentsFromSheets() {
+async function loadPaymentsFromSheets(retriesLeft = 2) {
   try {
     const data = await apiCall('getPayments');
     const rows = data.values || [];
@@ -722,6 +722,16 @@ async function loadPaymentsFromSheets() {
     });
   } catch(e) {
     console.error('Fizetések betöltési hiba:', e);
+    // Egy pillanatnyi hálózati/API döccenő miatt korábban ez CSENDBEN úgy
+    // jelent meg, mintha senki nem fizetett volna. Most inkább újrapróbáljuk,
+    // és ha az is elakad, LÁTHATÓAN jelezzük — nem hagyjuk a régi (esetleg
+    // hibás "mindenki fizetetlen") állapotot szó nélkül a képernyőn.
+    if (retriesLeft > 0) {
+      await new Promise(r => setTimeout(r, 1000));
+      return loadPaymentsFromSheets(retriesLeft - 1);
+    }
+    showToast('⚠️ A fizetési adatok betöltése nem sikerült — nyomd meg a Frissítés gombot!');
+    return;
   }
   renderPayment();
   renderStats();
@@ -732,11 +742,16 @@ async function loadPaymentsFromSheets() {
 async function loadChildrenFromSheets() {
   try {
     const data = await apiCall('getChildren');
-    // Always replace with Sheets data (even if empty)
+    // A getChildren válasz NEM tartalmaz fizetési/jelenléti adatot (azt külön
+    // kérdezzük le) — ezért a korábban már betöltött payment/attendance adatot
+    // megőrizzük, nehogy egy sikertelen fizetés-lekérdezés miatt úgy tűnjön,
+    // mintha "senki nem fizetett volna", miközben csak nem sikerült frissíteni.
+    const oldById = {};
+    children.forEach(c => { oldById[c.id] = c; });
     children = (data.children || []).map(c => ({
       ...c,
-      payment: c.payment || {},
-      attendance: c.attendance || {},
+      payment: (oldById[c.id] && oldById[c.id].payment) || c.payment || {},
+      attendance: (oldById[c.id] && oldById[c.id].attendance) || c.attendance || {},
       profileComplete: !!(c.parentName && c.parentPhone && c.parentEmail && c.birthdate),
       styles: c.styles || [],
       monthlyFee: c.monthlyFee || 0,
@@ -1092,6 +1107,24 @@ function togglePayment(childId, month) {
     month: month,
     status: child.payment[month]
   }).catch(e => console.error('Fizetés mentési hiba:', e));
+
+  // Ha a fizetést most jelöltük "fizetve"-nek ÉS van megadva havi díj,
+  // automatikusan kiállítunk egy hivatalos Billingo számlát is a szülőnek.
+  // 0 Ft-os (pl. ingyenes/próba) gyerekeknél nem állítunk ki számlát.
+  if (child.payment[month] === 'paid' && child.monthlyFee > 0) {
+    apiCall('createInvoice', 'POST', { childId: child.id, month }).then(result => {
+      if (result && result.error === 'BILLINGO_NINCS_BEALLITVA') {
+        showToast('ℹ️ A Billingo még nincs beállítva — a számla nem készült el.');
+      } else if (result && result.error === 'NINCS_HAVIDIJ_MEGADVA') {
+        // Csendben kihagyjuk — nincs mit számlázni.
+      } else if (result && result.error) {
+        console.error('Billingo hiba:', result);
+        showToast('⚠️ A számla kiállítása nem sikerült, nézd meg a naplót.');
+      } else if (result && result.success) {
+        showToast(result.emailSent ? '✅ Számla kiállítva és kiküldve emailben!' : '✅ Számla kiállítva a Billingo-ban!');
+      }
+    }).catch(e => console.error('Számla kiállítási hiba:', e));
+  }
 }
 
 // ATTENDANCE
