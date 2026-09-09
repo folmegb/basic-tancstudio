@@ -429,7 +429,7 @@ export default async function handler(req, res) {
       // Ez egy külön Billingo végpont — a számla létrehozása önmagában nem küld ki semmit.
       let emailSent = false;
       if (parentEmail && invoiceData && invoiceData.id) {
-        const emailResp = await fetch(`https://api.billingo.hu/v3/documents/${invoiceData.id}/emails`, {
+        const emailResp = await fetch(`https://api.billingo.hu/v3/documents/${invoiceData.id}/send`, {
           method: 'POST',
           headers: billingoHeaders,
           body: JSON.stringify({ emails: [parentEmail] }),
