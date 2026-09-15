@@ -997,9 +997,11 @@ function renderDashUnpaid() {
     <div class="hogos-item" style="border-left-color:var(--red);margin-bottom:0.5rem;">
       <div>
         <div class="hogos-name">${c.name}</div>
-        <div class="hogos-group">${c.group} · ${c.parentEmail}</div>
+        <div class="hogos-group">${c.group} · ${c.parentEmail || 'nincs email megadva'}</div>
       </div>
-      <span style="font-size:12px;color:var(--red);font-weight:500;">Nem fizetve</span>
+      ${c.parentEmail
+        ? `<button class="btn btn-outline" style="padding:6px 12px;font-size:12px;" onclick="sendSingleReminder('${c.id}')">📧 Küldés</button>`
+        : `<span style="font-size:12px;color:var(--red);font-weight:500;">Nem fizetve</span>`}
     </div>`).join('');
 }
 
@@ -1502,10 +1504,38 @@ function deleteChild(id) {
 }
 
 // EMAIL REMINDER
+async function sendReminderEmail(child, monthName) {
+  await emailjs.send('service_vsgf4cp', 'template_l19u2pr', {
+    to_name: child.parentName || child.name,
+    to_email: child.parentEmail,
+    month: monthName
+  });
+}
+
+function getMonthName(month) {
+  return {'09':'Szeptember','10':'Október','11':'November','12':'December','01':'Január','02':'Február','03':'Március','04':'Április','05':'Május'}[month] || month;
+}
+
+// Egyetlen szülőnek küldi ki az emlékeztetőt (pl. a főoldali "Nem fizetők" listáról)
+async function sendSingleReminder(childId) {
+  const child = children.find(c => c.id === childId);
+  if (!child || !child.parentEmail) return;
+  const currentMonth = getCurrentPaymentMonth();
+  const monthName = getMonthName(currentMonth);
+  if (!confirm(`Emlékeztetőt küldesz ${child.parentName || child.name} részére (${monthName})?`)) return;
+  try {
+    await sendReminderEmail(child, monthName);
+    showToast(`📧 Emlékeztető elküldve: ${child.name}`);
+  } catch(e) {
+    console.error('Email küldési hiba:', child.name, e);
+    showToast('⚠️ Nem sikerült elküldeni az emlékeztetőt.');
+  }
+}
+
 async function sendPaymentReminders() {
   const monthSel = document.getElementById('paymentMonthFilter');
   const currentMonth = monthSel ? monthSel.value : months[0];
-  const monthName = {'09':'Szeptember','10':'Október','11':'November','12':'December','01':'Január','02':'Február','03':'Március','04':'Április','05':'Május'}[currentMonth] || currentMonth;
+  const monthName = getMonthName(currentMonth);
   
   const unpaid = children.filter(c => c.payment && (c.payment[currentMonth] || 'unpaid') === 'unpaid' && c.parentEmail);
   
@@ -1519,11 +1549,7 @@ async function sendPaymentReminders() {
   let sent = 0;
   for (const child of unpaid) {
     try {
-      await emailjs.send('service_vsgf4cp', 'template_l19u2pr', {
-        to_name: child.parentName || child.name,
-        to_email: child.parentEmail,
-        month: monthName
-      });
+      await sendReminderEmail(child, monthName);
       sent++;
     } catch(e) {
       console.error('Email küldési hiba:', child.name, e);
