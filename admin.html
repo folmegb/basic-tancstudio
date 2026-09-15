@@ -1508,7 +1508,8 @@ async function sendReminderEmail(child, monthName) {
   await emailjs.send('service_vsgf4cp', 'template_l19u2pr', {
     to_name: child.parentName || child.name,
     to_email: child.parentEmail,
-    month: monthName
+    month: monthName,
+    amount: formatFee(child.monthlyFee || 0)
   });
 }
 
