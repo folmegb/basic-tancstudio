@@ -1519,7 +1519,15 @@ function getMonthName(month) {
 // Egyetlen szülőnek küldi ki az emlékeztetőt (pl. a főoldali "Nem fizetők" listáról)
 async function sendSingleReminder(childId) {
   const child = children.find(c => c.id === childId);
-  if (!child || !child.parentEmail) return;
+  if (!child) {
+    console.error('sendSingleReminder: nem található childId =', JSON.stringify(childId), 'a jelenlegi ID-k:', children.map(c => c.id));
+    showToast('⚠️ Hiba: nem található ez a gyerek (frissítsd az oldalt, majd próbáld újra).');
+    return;
+  }
+  if (!child.parentEmail) {
+    showToast('⚠️ Nincs megadva email cím ennél a gyereknél.');
+    return;
+  }
   const currentMonth = getCurrentPaymentMonth();
   const monthName = getMonthName(currentMonth);
   if (!confirm(`Emlékeztetőt küldesz ${child.parentName || child.name} részére (${monthName})?`)) return;
