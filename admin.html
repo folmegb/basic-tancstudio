@@ -610,6 +610,13 @@ tr:hover td { background: var(--ivory); }
           <label class="form-label">Havi díj (Ft)</label>
           <input type="number" class="form-input" id="editFee" min="0" step="500" placeholder="pl. 8000">
         </div>
+        <div class="form-row">
+          <label class="form-label">Fizetési mód <span style="color:var(--text-soft);font-size:11px;">(csak admin állítja)</span></label>
+          <select class="form-select" id="editPaymentMethod">
+            <option value="wire_transfer">Átutalás</option>
+            <option value="cash">Készpénz</option>
+          </select>
+        </div>
       </div>
 
       <div class="form-section-title">Szülő adatai</div>
@@ -1018,7 +1025,7 @@ function renderChildren() {
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>Név</th><th>PIN</th><th>Havi díj</th><th>Profil</th><th>Műveletek</th>
+              <th>Név</th><th>PIN</th><th>Havi díj</th><th>Fizetési mód</th><th>Profil</th><th>Műveletek</th>
             </tr></thead>
             <tbody>${kids.map(c => `
               <tr>
@@ -1033,6 +1040,13 @@ function renderChildren() {
                       onblur="this.style.borderColor='var(--border)'">
                     <span style="font-size:12px;color:var(--text-soft);">Ft</span>
                   </div>
+                </td>
+                <td>
+                  <select style="padding:5px 8px;border:1px solid var(--border);font-family:Inter,sans-serif;font-size:13px;background:var(--ivory);outline:none;"
+                    onchange="updatePaymentMethod('${c.id}', this.value)">
+                    <option value="wire_transfer" ${(c.paymentMethod || 'wire_transfer') === 'wire_transfer' ? 'selected' : ''}>Átutalás</option>
+                    <option value="cash" ${c.paymentMethod === 'cash' ? 'selected' : ''}>Készpénz</option>
+                  </select>
                 </td>
                 <td><span style="font-size:11px;color:${c.profileComplete ? 'var(--green)' : 'var(--orange)'};">${c.profileComplete ? '✓ Kitöltve' : '⚠ Hiányos'}</span></td>
                 <td><div class="td-actions">
@@ -1407,6 +1421,7 @@ function saveNewChild() {
     isNew: true,
     birthdate: '', parentName: '', parentPhone: '', parentEmail: '',
     billing: '', postCode: '', city: '', childPhone: '', childEmail: '', profileComplete: false,
+    paymentMethod: 'wire_transfer',
     monthlyFee: 0,
     styles: [],
     payment: { [getCurrentPaymentMonth()]: 'unpaid' },
@@ -1457,6 +1472,7 @@ function openEditModal(id) {
   document.getElementById('editPostCode').value = child.postCode || '';
   document.getElementById('editCity').value = child.city || '';
   document.getElementById('editFee').value = child.monthlyFee || 0;
+  document.getElementById('editPaymentMethod').value = child.paymentMethod || 'wire_transfer';
   document.getElementById('editChildPhone').value = child.childPhone || '';
   document.getElementById('editChildEmail').value = child.childEmail || '';
   document.getElementById('editModal').classList.add('show');
@@ -1475,6 +1491,7 @@ function saveEdit() {
   child.postCode = document.getElementById('editPostCode').value;
   child.city = document.getElementById('editCity').value;
   child.monthlyFee = parseInt(document.getElementById('editFee').value) || 0;
+  child.paymentMethod = document.getElementById('editPaymentMethod').value;
   child.childPhone = document.getElementById('editChildPhone').value;
   child.childEmail = document.getElementById('editChildEmail').value;
   child.profileComplete = !!(child.parentName && child.parentPhone && child.parentEmail && child.birthdate);
@@ -1490,6 +1507,14 @@ function updateFee(childId, value) {
   child.monthlyFee = parseInt(value) || 0;
   renderPayment();
   showToast('Díj frissítve: ' + formatFee(child.monthlyFee));
+  saveChildToSheets(child);
+}
+
+function updatePaymentMethod(childId, value) {
+  const child = children.find(c => c.id === childId);
+  if (!child) return;
+  child.paymentMethod = value;
+  showToast('Fizetési mód frissítve: ' + (value === 'cash' ? 'Készpénz' : 'Átutalás'));
   saveChildToSheets(child);
 }
 
