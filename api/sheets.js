@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     if (action === 'getChildren') {
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:P1000',
+        range: 'Gyerekek!A2:Q1000',
       });
       const rows = response.data.values || [];
       const children = rows.filter(r => r[0]).map(r => ({
@@ -67,6 +67,7 @@ export default async function handler(req, res) {
         profileComplete: r[13] === 'Igen',
         postCode: r[14] || '',
         city: r[15] || '',
+        paymentMethod: r[16] || 'wire_transfer',
       }));
       return res.status(200).json({ children });
     }
@@ -77,7 +78,7 @@ export default async function handler(req, res) {
       // Find if child exists (by ID)
       const existing = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:P1000',
+        range: 'Gyerekek!A2:Q1000',
       });
       const rows = existing.data.values || [];
       const rowIdx = rows.findIndex(r => r[2] === c.id);
@@ -106,7 +107,7 @@ export default async function handler(req, res) {
         c.childPhone, c.childEmail, c.monthlyFee,
         (c.styles || []).join(','),
         c.profileComplete ? 'Igen' : 'Nem',
-        c.postCode || '', c.city || ''
+        c.postCode || '', c.city || '', c.paymentMethod || 'wire_transfer'
       ]];
 
       if (rowIdx === -1) {
@@ -121,7 +122,7 @@ export default async function handler(req, res) {
         // Update existing row
         await sheets.spreadsheets.values.update({
           spreadsheetId: SHEET_ID,
-          range: `Gyerekek!A${rowIdx + 2}:P${rowIdx + 2}`,
+          range: `Gyerekek!A${rowIdx + 2}:Q${rowIdx + 2}`,
           valueInputOption: 'RAW',
           resource: { values: rowData },
         });
@@ -136,14 +137,14 @@ export default async function handler(req, res) {
       // Delete from Gyerekek sheet
       const existing = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:P1000',
+        range: 'Gyerekek!A2:Q1000',
       });
       const rows = existing.data.values || [];
       const rowIdx = rows.findIndex(r => r[2] === id);
       if (rowIdx !== -1) {
         await sheets.spreadsheets.values.clear({
           spreadsheetId: SHEET_ID,
-          range: `Gyerekek!A${rowIdx + 2}:P${rowIdx + 2}`,
+          range: `Gyerekek!A${rowIdx + 2}:Q${rowIdx + 2}`,
         });
       }
 
@@ -309,7 +310,7 @@ export default async function handler(req, res) {
       // Gyerek + szülő adatainak kikeresése a Gyerekek lapról
       const childrenResp = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:P1000',
+        range: 'Gyerekek!A2:Q1000',
       });
       const childRow = (childrenResp.data.values || []).find(r => r[2] === childId);
       if (!childRow) {
@@ -322,6 +323,9 @@ export default async function handler(req, res) {
       const monthlyFee = parseInt(childRow[11]) || 0;
       const postCode = childRow[14] || '';
       const city = childRow[15] || '';
+      // Admin által beállított fizetési mód — alapértelmezetten átutalás,
+      // de a szülő kérésére admin átállíthatja készpénzre (Gyerekek lap Q oszlopa).
+      const paymentMethod = childRow[16] || 'wire_transfer';
 
       if (!monthlyFee) {
         return res.status(200).json({ error: 'NINCS_HAVIDIJ_MEGADVA' });
@@ -398,7 +402,7 @@ export default async function handler(req, res) {
         type: 'invoice',
         fulfillment_date: today,
         due_date: today,
-        payment_method: 'wire_transfer',
+        payment_method: paymentMethod,
         language: 'hu',
         currency: 'HUF',
         electronic: false,
