@@ -25,6 +25,28 @@ async function getAuth() {
   return auth;
 }
 
+// A jelenléti lap (csoportonkénti fül) sorait alakítja { gyerek: { dátum: true/false } } formára.
+// Tűrő olvasás: a kis- vagy nagybetűs "x" (és körülötte szóköz) is jelenlétnek számít,
+// és ha ugyanaz a gyerek-név vagy ugyanaz a dátum többször szerepel a lapon, az adatok
+// összeadódnak (VAGY), nem írják felül egymást.
+function buildAttendance(rows) {
+  const dates = (rows[1] || []).slice(1); // 2. sor = dátumok (az A oszlop kihagyva)
+  const childRows = rows.slice(2);        // 3. sortól = gyerekek
+  const isMarked = (cell) => String(cell == null ? '' : cell).trim().toUpperCase() === 'X';
+
+  const attendance = {};
+  childRows.forEach(row => {
+    const childName = row[0];
+    if (!childName) return;
+    if (!attendance[childName]) attendance[childName] = {};
+    dates.forEach((date, i) => {
+      if (!date) return;
+      attendance[childName][date] = !!attendance[childName][date] || isMarked(row[i + 1]);
+    });
+  });
+  return { dates, attendance };
+}
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -196,19 +218,7 @@ export default async function handler(req, res) {
         range: `${group}!A1:ZZ1000`,
       });
       const rows = response.data.values || [];
-      const dates = (rows[1] || []).slice(1); // Row 2 = dates
-      const childRows = rows.slice(2); // Row 3+ = children
-      
-      const attendance = {};
-      childRows.forEach(row => {
-        const childName = row[0];
-        if (!childName) return;
-        attendance[childName] = {};
-        dates.forEach((date, i) => {
-          if (date) attendance[childName][date] = row[i + 1] === 'X';
-        });
-      });
-      
+      const { dates, attendance } = buildAttendance(rows);
       return res.status(200).json({ dates, attendance });
     }
 
