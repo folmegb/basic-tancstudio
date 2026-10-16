@@ -359,6 +359,25 @@ async function loadChildFromSheets(pin) {
   }
 }
 
+// Jelenléti kulcs (csoporton belüli azonos nevek megkülönböztetése) — ugyanaz a logika,
+// mint az admin felületen és a tanári oldalon, hogy ugyanazt a sort találják meg.
+function getAttendanceKey(child) {
+  if (!child) return '';
+  const same = allChildrenCache
+    .filter(c => c.name === child.name && c.group === child.group)
+    .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+  if (same.length <= 1) return child.name;
+  const idx = same.findIndex(c => c.id === child.id);
+  return `${child.name} (${idx + 1})`;
+}
+
+// Egy dátum-fejléc hónapját adja vissza ("09"), tetszőleges elválasztóval is
+// ("2026.09.02", "2026. 09. 02.", "2026-09-02").
+function monthOfDate(d) {
+  const m = String(d).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  return m ? m[2].padStart(2, '0') : '';
+}
+
 // Ugyanaz a logika, mint az admin felületen: ha két gyereknek azonos a neve,
 // sorszámmal különbözteti meg őket, hogy ne keveredjen össze a fizetési adatuk.
 function getPaymentKey(child) {
@@ -587,7 +606,7 @@ async function renderPayment(child) {
   try {
     const attResp = await fetch(`/api/sheets?action=getAttendance&group=${encodeURIComponent(child.group)}`);
     const attJson = await attResp.json();
-    attData = attJson.attendance?.[child.name] || {};
+    attData = attJson.attendance?.[getAttendanceKey(child)] || attJson.attendance?.[child.name] || {};
   } catch(e) {}
 
   document.getElementById('paymentHistory').innerHTML = months.map((m, idx) => {
@@ -598,11 +617,7 @@ async function renderPayment(child) {
     const prevMonth = months[idx - 1];
     let halfMonth = false;
     if (prevMonth && fee > 0) {
-      const prevDates = Object.keys(attData).filter(d => {
-        const parts = d.split('.');
-        const month = parts[1] ? parts[1].trim().padStart(2, '0') : '';
-        return month === prevMonth;
-      });
+      const prevDates = Object.keys(attData).filter(d => monthOfDate(d) === prevMonth);
       const prevPresent = prevDates.filter(d => attData[d]).length;
       if (prevPresent === 1) halfMonth = true;
     }
