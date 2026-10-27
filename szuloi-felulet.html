@@ -695,7 +695,7 @@ async function renderPayment(child) {
       let tag = '';
       if (st === 'skipped') tag = ' · nem jön';
       else if (fee > 0 && due === 0) tag = ' · nincs fizetendő';
-      else if (fee > 0 && due !== fee) tag = st === 'enroll' ? ' · kezdő hónap' : ' · fél hónap';
+      else if (fee > 0 && due !== fee && st !== 'enroll') tag = ' · fél hónap';
 
       const statusHtml = noDue
         ? '<span class="payment-row-status" style="color:var(--text-soft);">—</span>'
