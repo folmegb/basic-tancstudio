@@ -1016,14 +1016,28 @@ function renderStats() {
   document.getElementById('statHogos').textContent = hogos;
 }
 
+// Jelenlét-arány a Lógósok listához, a csoport jelenléti lapjának adataiból. A régi változat egy
+// soha fel nem töltött listából (c.attendance) olvasott, ezért a lista mindig üres volt.
+// A hiányzást a gyereknél onnantól számoljuk, ahol beiratkozott (a beiratkozás hónapja is beleszámít).
+// A "nem jön"-nek jelölt hónap is hiányzásnak számít, mindegy, miért. Csak a beiratkozás ELŐTTI alkalmak maradnak ki.
+// Ha a csoport jelenléte nem töltődött be, null-t ad: ilyenkor senkit nem jelölünk meg.
+function attendanceStats(child) {
+  if (!attendanceOkGroups[child.group]) return null;
+  const dates = attendanceDates[child.group] || [];
+  const att = attendanceData[child.id] || {};
+  let total = 0, present = 0;
+  dates.forEach(d => {
+    if (getMonthStatus(child, monthOfDate(d)) === 'before') return;
+    total++;
+    if (att[d]) present++;
+  });
+  return { present, total, rate: total ? present / total : null };
+}
+
 function getHogos() {
   return children.filter(c => {
-    let total = 0, present = 0;
-    Object.values(c.attendance).forEach(month => {
-      total += month.length;
-      present += month.filter(Boolean).length;
-    });
-    return total > 0 && present / total < 0.5;
+    const st = attendanceStats(c);
+    return st && st.total > 0 && st.rate < 0.5;
   });
 }
 
@@ -1385,22 +1399,28 @@ function renderHogos() {
   const hogos = getHogos();
   const el = document.getElementById('hogosList');
   if (hogos.length === 0) {
-    el.innerHTML = '<div style="background:white;border:1px solid var(--border-lt);padding:1.5rem;color:var(--text-soft);font-size:13px;font-style:italic;">Nincs lógós tanuló. 🎉</div>';
+    el.innerHTML = '<div style="background:white;border:1px solid var(--border-lt);padding:1.5rem;color:var(--text-soft);font-size:13px;font-style:italic;">Nincs lógós tanuló. 🎉</div>' + hogosMissingNote();
     return;
   }
   el.innerHTML = hogos.map(c => {
-    let total = 0, present = 0;
-    Object.values(c.attendance).forEach(m => { total += m.length; present += m.filter(Boolean).length; });
-    const rate = Math.round(present/total*100);
+    const st = attendanceStats(c);
+    const rate = Math.round(st.rate * 100);
     return `
       <div class="hogos-item ${rate < 25 ? 'bad' : ''}">
         <div>
           <div class="hogos-name">${c.name}</div>
           <div class="hogos-group">${c.group}</div>
         </div>
-        <span class="hogos-rate">${present}/${total} alkalom (${rate}%)</span>
+        <span class="hogos-rate">${st.present}/${st.total} alkalom (${rate}%)</span>
       </div>`;
-  }).join('');
+  }).join('') + hogosMissingNote();
+}
+
+// Ha egy csoport jelenléte nem töltődött be, ezt jelezzük — különben a lista hamis megnyugvást adna.
+function hogosMissingNote() {
+  const missing = groups.filter(g => !attendanceOkGroups[g]);
+  if (!missing.length) return '';
+  return `<div style="margin-top:0.75rem;font-size:12px;color:var(--orange);">⚠ Nem töltődött be a jelenlét ennél a csoportnál: ${missing.join(', ')} — a lista hiányos lehet.</div>`;
 }
 
 // ADD CHILD
@@ -1849,6 +1869,7 @@ function refreshFeeViews(includeChildren) {
   renderPaymentSummary();
   renderStats();
   renderDashUnpaid();
+  renderHogos();
 }
 
 // GÁLA JEGYEK
