@@ -580,6 +580,22 @@ tr:hover td { background: var(--ivory); }
 </div>
 
 <!-- EDIT CHILD MODAL -->
+<div class="modal-overlay" id="skipModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="skipModalTitle">Nem jön</div>
+      <button class="modal-close" onclick="closeModal('skipModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:1rem;">Jelöld be azokat a hónapokat, amikor a gyerek nem jön. A bejelölt hónapra nincs díj, számla és emlékeztető, a rákövetkező hónap pedig teljes díjas. A pipálás azonnal mentődik.</p>
+      <div id="skipMonthsList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('skipModal')">Bezár</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="editModal">
   <div class="modal modal-wide">
     <div class="modal-header">
@@ -616,6 +632,23 @@ tr:hover td { background: var(--ivory); }
             <option value="wire_transfer">Átutalás</option>
             <option value="cash">Készpénz</option>
           </select>
+        </div>
+      </div>
+
+      <div class="form-section-title">Beiratkozás <span style="color:var(--text-soft);font-weight:400;text-transform:none;letter-spacing:0;">(csak admin látja)</span></div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">Beiratkozás hónapja</label>
+          <select class="form-select" id="editEnrollMonth">
+            <option value="">— szeptembertől jár —</option>
+            <option value="09">Szeptember</option><option value="10">Október</option><option value="11">November</option>
+            <option value="12">December</option><option value="01">Január</option><option value="02">Február</option>
+            <option value="03">Március</option><option value="04">Április</option><option value="05">Május</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Első hónapban fizetendő alkalmak</label>
+          <input type="number" class="form-input" id="editFirstSessions" min="0" step="1" placeholder="pl. 1">
         </div>
       </div>
 
@@ -712,6 +745,7 @@ async function loadAttendanceFromSheets() {
     try {
       const data = await apiCall(`getAttendance&group=${encodeURIComponent(group)}`);
       if (data.dates) {
+        attendanceOkGroups[group] = true;
         attendanceDates[group] = data.dates.filter(Boolean);
         // Map attendance by childId
         children.filter(c => c.group === group).forEach(c => {
@@ -729,6 +763,8 @@ async function loadAttendanceFromSheets() {
     }
   }
   renderAttendance();
+  // A fizetendő összegek a jelenlétből számolódnak, ezért ezeket is frissíteni kell
+  refreshFeeViews(false);
 }
 
 // A fizetési státuszok korábban NEM töltődtek vissza a Sheets-ből — oldal
@@ -973,7 +1009,7 @@ function getCurrentPaymentMonth() {
 
 function renderStats() {
   const currentMonth = getCurrentPaymentMonth();
-  const unpaid = children.filter(c => (c.payment[currentMonth] || 'unpaid') === 'unpaid').length;
+  const unpaid = children.filter(c => isDue(c, currentMonth) && (c.payment[currentMonth] || 'unpaid') === 'unpaid').length;
   const hogos = getHogos().length;
   document.getElementById('statTotal').textContent = children.length;
   document.getElementById('statUnpaid').textContent = unpaid;
@@ -993,7 +1029,7 @@ function getHogos() {
 
 function renderDashUnpaid() {
   const currentMonth = getCurrentPaymentMonth();
-  const unpaid = children.filter(c => (c.payment[currentMonth] || 'unpaid') === 'unpaid')
+  const unpaid = children.filter(c => isDue(c, currentMonth) && (c.payment[currentMonth] || 'unpaid') === 'unpaid')
     .sort((a, b) => a.name.localeCompare(b.name, 'hu'));
   const el = document.getElementById('dashUnpaidList');
   if (unpaid.length === 0) {
@@ -1025,7 +1061,7 @@ function renderChildren() {
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>Név</th><th>PIN</th><th>Havi díj</th><th>Fizetési mód</th><th>Profil</th><th>Műveletek</th>
+              <th>Név</th><th>PIN</th><th>Havi díj</th><th>Fizetési mód</th><th>Profil</th><th>Műveletek</th><th>Nem jön</th>
             </tr></thead>
             <tbody>${kids.map(c => `
               <tr>
@@ -1054,6 +1090,7 @@ function renderChildren() {
                   <button class="btn btn-outline btn-sm" onclick="printChildQR('${c.id}')">QR</button>
                   <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red);" onclick="deleteChild('${c.id}')">Törlés</button>
                 </div></td>
+                <td><button class="btn btn-outline btn-sm" style="${parseMonthList(c.skipMonths).length ? 'color:var(--orange);border-color:var(--orange);' : ''}" onclick="openSkipModal('${c.id}')">${skipButtonLabel(c)}</button></td>
               </tr>`).join('')}
             </tbody>
           </table>
@@ -1068,7 +1105,7 @@ function renderPaymentSummary() {
   let totalExpected = 0, totalPaid = 0;
 
   children.forEach(c => {
-    const fee = c.monthlyFee || 0;
+    const fee = calcFee(c, month);
     totalExpected += fee;
     if (c.payment && c.payment[month] === 'paid') totalPaid += fee;
   });
@@ -1115,14 +1152,18 @@ function renderPayment() {
                 <div style="font-size:11px;color:var(--text-soft);margin-top:2px;">Alap: ${formatFee(c.monthlyFee || 0)}</div>
               </td>
               ${months.map(m => {
+                const st = getMonthStatus(c, m);
+                if (st === 'before') return `<td><span title="Beiratkozás előtti hónap" style="color:var(--text-soft);">–</span></td>`;
+                if (st === 'skipped') return `<td><span title="Ebben a hónapban nem jön" style="color:var(--text-soft);">–</span></td>`;
                 const status = c.payment ? (c.payment[m] || 'unpaid') : 'unpaid';
                 const icon = status === 'paid' ? '✓' : '✗';
                 const fee = calcFee(c, m);
                 const fullFee = c.monthlyFee || 0;
-                const isHalf = fullFee > 0 && fee === Math.round(fullFee / 2);
-                const isZero = fullFee > 0 && fee === 0;
-                const warning = isHalf ? '<div style="font-size:9px;color:var(--orange);margin-top:2px;">½ hónap</div>' : 
-                                isZero ? '<div style="font-size:9px;color:var(--text-soft);margin-top:2px;">0 Ft</div>' : '';
+                let label = '';
+                if (st === 'enroll' && !hasFirstMonthSessions(c)) label = 'alkalmak száma?';
+                else if (fullFee > 0 && fee === 0) label = '0 Ft';
+                else if (fullFee > 0 && fee !== fullFee) label = `${st === 'enroll' ? 'kezdő hónap' : '½ hónap'} · ${formatFee(fee)}`;
+                const warning = label ? `<div title="Fizetendő: ${formatFee(fee)}" style="font-size:9px;color:var(--orange);margin-top:2px;">${label}</div>` : '';
                 return `<td><button class="pay-cell ${status}" onclick="togglePayment('${c.id}','${m}')">${icon}</button>${warning}</td>`;
               }).join('')}
             </tr>`).join('')}
@@ -1135,6 +1176,8 @@ function renderPayment() {
 function togglePayment(childId, month) {
   const child = children.find(c => c.id === childId);
   if (!child) return;
+  const monthStatus = getMonthStatus(child, month);
+  if (monthStatus === 'before' || monthStatus === 'skipped') return; // erre a hónapra nincs fizetés
   if (!child.payment) child.payment = {};
   const current = child.payment[month] || 'unpaid';
   child.payment[month] = current === 'paid' ? 'unpaid' : 'paid';
@@ -1154,12 +1197,16 @@ function togglePayment(childId, month) {
   // Ha a fizetést most jelöltük "fizetve"-nek ÉS van megadva havi díj,
   // automatikusan kiállítunk egy hivatalos Billingo számlát is a szülőnek.
   // 0 Ft-os (pl. ingyenes/próba) gyerekeknél nem állítunk ki számlát.
-  if (child.payment[month] === 'paid' && child.monthlyFee > 0) {
+  if (child.payment[month] === 'paid' && calcFee(child, month) > 0) {
     apiCall('createInvoice', 'POST', { childId: child.id, month }).then(result => {
       if (result && result.error === 'BILLINGO_NINCS_BEALLITVA') {
         showToast('ℹ️ A Billingo még nincs beállítva — a számla nem készült el.');
-      } else if (result && result.error === 'NINCS_HAVIDIJ_MEGADVA') {
+      } else if (result && (result.error === 'NINCS_HAVIDIJ_MEGADVA' || result.error === 'NINCS_FIZETENDO')) {
         // Csendben kihagyjuk — nincs mit számlázni.
+      } else if (result && result.error === 'HIANYZIK_ALKALOM_SZAM') {
+        showToast(`⚠️ Nincs számla — add meg ${result.childName} első hónapjában fizetendő alkalmak számát (Szerkesztés)!`);
+      } else if (result && result.error === 'JELENLET_NEM_OLVASHATO') {
+        showToast(`⚠️ Nem sikerült beolvasni a jelenlétet, ezért nem készült számla (${result.childName}) — próbáld újra.`);
       } else if (result && result.error === 'HIANYZIK_CIM') {
         showToast(`⚠️ Nincs számla — hiányzik az irányítószám/város ${result.childName} profiljából. Pótold a Gyerekeknél!`);
       } else if (result && result.error) {
@@ -1185,6 +1232,7 @@ function initAttendanceFilter() {
 let attendanceDates = {}; // { group: [date1, date2, ...] }
 // Attendance data per child per date
 let attendanceData = {}; // { childId: { date: true/false } }
+const attendanceOkGroups = {}; // { csoport: true } — a csoport jelenléti lapja sikeresen betöltődött
 
 // Egyedi kulcsot ad vissza a gyerekhez, ami a jelenléti/fizetési Sheet sorát azonosítja.
 // Ha két gyereknek ugyanaz a neve UGYANABBAN a csoportban, sorszámmal különbözteti meg
@@ -1289,6 +1337,7 @@ function toggleAttendanceDate(childId, date) {
   const isPresent = attendanceData[childId][date];
   renderAttendance();
   renderHogos();
+  refreshFeeViews(false);
   showToast('Jelenlét frissítve!');
   // Korábban ez csak bepipáláskor futott le — kipipálás (jelenlét visszavétele)
   // esetén a Sheet-ben megmaradt az X, és újratöltéskor visszatért a pipa.
@@ -1422,6 +1471,9 @@ function saveNewChild() {
     birthdate: '', parentName: '', parentPhone: '', parentEmail: '',
     billing: '', postCode: '', city: '', childPhone: '', childEmail: '', profileComplete: false,
     paymentMethod: 'wire_transfer',
+    skipMonths: [],
+    enrollMonth: getCurrentPaymentMonth(),
+    firstMonthSessions: null,
     monthlyFee: 0,
     styles: [],
     payment: { [getCurrentPaymentMonth()]: 'unpaid' },
@@ -1473,6 +1525,8 @@ function openEditModal(id) {
   document.getElementById('editCity').value = child.city || '';
   document.getElementById('editFee').value = child.monthlyFee || 0;
   document.getElementById('editPaymentMethod').value = child.paymentMethod || 'wire_transfer';
+  document.getElementById('editEnrollMonth').value = normMonth(child.enrollMonth);
+  document.getElementById('editFirstSessions').value = hasFirstMonthSessions(child) ? child.firstMonthSessions : '';
   document.getElementById('editChildPhone').value = child.childPhone || '';
   document.getElementById('editChildEmail').value = child.childEmail || '';
   document.getElementById('editModal').classList.add('show');
@@ -1492,6 +1546,9 @@ function saveEdit() {
   child.city = document.getElementById('editCity').value;
   child.monthlyFee = parseInt(document.getElementById('editFee').value) || 0;
   child.paymentMethod = document.getElementById('editPaymentMethod').value;
+  child.enrollMonth = document.getElementById('editEnrollMonth').value;
+  const sessionsVal = document.getElementById('editFirstSessions').value;
+  child.firstMonthSessions = sessionsVal === '' ? null : Math.max(0, parseInt(sessionsVal) || 0);
   child.childPhone = document.getElementById('editChildPhone').value;
   child.childEmail = document.getElementById('editChildEmail').value;
   child.profileComplete = !!(child.parentName && child.parentPhone && child.parentEmail && child.birthdate);
@@ -1505,8 +1562,48 @@ function updateFee(childId, value) {
   const child = children.find(c => c.id === childId);
   if (!child) return;
   child.monthlyFee = parseInt(value) || 0;
-  renderPayment();
+  refreshFeeViews(false);
   showToast('Díj frissítve: ' + formatFee(child.monthlyFee));
+  saveChildToSheets(child);
+}
+
+// "NEM JÖN" HÓNAPOK
+const SHORT_MONTH_NAMES = {'09':'Szep','10':'Okt','11':'Nov','12':'Dec','01':'Jan','02':'Feb','03':'Márc','04':'Ápr','05':'Máj'};
+let skipModalChildId = null;
+
+function skipButtonLabel(c) {
+  const list = parseMonthList(c.skipMonths);
+  return list.length ? list.map(m => SHORT_MONTH_NAMES[m]).join(', ') : 'Jelölés';
+}
+
+function renderSkipModalBody() {
+  const child = children.find(c => c.id === skipModalChildId);
+  if (!child) return;
+  const list = parseMonthList(child.skipMonths);
+  document.getElementById('skipMonthsList').innerHTML = FEE_MONTHS.map(m => `
+    <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-lt);cursor:pointer;font-size:14px;">
+      <input type="checkbox" ${list.includes(m) ? 'checked' : ''} onchange="toggleSkipMonth('${m}', this.checked)">
+      ${getMonthName(m)}
+    </label>`).join('');
+}
+
+function openSkipModal(childId) {
+  const child = children.find(c => c.id === childId);
+  if (!child) return;
+  skipModalChildId = childId;
+  document.getElementById('skipModalTitle').textContent = 'Nem jön — ' + child.name;
+  renderSkipModalBody();
+  openModal('skipModal');
+}
+
+function toggleSkipMonth(month, checked) {
+  const child = children.find(c => c.id === skipModalChildId);
+  if (!child) return;
+  let list = parseMonthList(child.skipMonths);
+  list = checked ? Array.from(new Set(list.concat(month))) : list.filter(m => m !== month);
+  child.skipMonths = FEE_MONTHS.filter(m => list.includes(m)); // tanévi sorrendben
+  refreshFeeViews(true);
+  showToast(checked ? `${getMonthName(month)}: nem jön` : `${getMonthName(month)}: újra jön`);
   saveChildToSheets(child);
 }
 
@@ -1529,12 +1626,12 @@ function deleteChild(id) {
 }
 
 // EMAIL REMINDER
-async function sendReminderEmail(child, monthName) {
+async function sendReminderEmail(child, month) {
   await emailjs.send('service_vsgf4cp', 'template_l19u2pr', {
     to_name: child.parentName || child.name,
     to_email: child.parentEmail,
-    month: monthName,
-    amount: formatFee(child.monthlyFee || 0)
+    month: getMonthName(month),
+    amount: formatFee(calcFee(child, month))
   });
 }
 
@@ -1558,7 +1655,7 @@ async function sendSingleReminder(childId) {
   const monthName = getMonthName(currentMonth);
   if (!confirm(`Emlékeztetőt küldesz ${child.parentName || child.name} részére (${monthName})?`)) return;
   try {
-    await sendReminderEmail(child, monthName);
+    await sendReminderEmail(child, currentMonth);
     showToast(`📧 Emlékeztető elküldve: ${child.name}`);
   } catch(e) {
     console.error('Email küldési hiba:', child.name, e);
@@ -1571,7 +1668,7 @@ async function sendPaymentReminders() {
   const currentMonth = monthSel ? monthSel.value : months[0];
   const monthName = getMonthName(currentMonth);
   
-  const unpaid = children.filter(c => c.payment && (c.payment[currentMonth] || 'unpaid') === 'unpaid' && c.parentEmail);
+  const unpaid = children.filter(c => c.payment && isDue(c, currentMonth) && (c.payment[currentMonth] || 'unpaid') === 'unpaid' && c.parentEmail);
   
   if (unpaid.length === 0) { 
     showToast('Mindenki fizetett! Nem kell emlékeztetőt küldeni.'); 
@@ -1583,7 +1680,7 @@ async function sendPaymentReminders() {
   let sent = 0;
   for (const child of unpaid) {
     try {
-      await sendReminderEmail(child, monthName);
+      await sendReminderEmail(child, currentMonth);
       sent++;
     } catch(e) {
       console.error('Email küldési hiba:', child.name, e);
@@ -1651,20 +1748,107 @@ function toggleStyle(childId, style) {
 
 // FORMAT FEE
 function formatFee(amount) {
-  return amount.toLocaleString('hu-HU') + ' Ft';
+  // Egységes tagolás: "6 000 Ft" és "12 000 Ft" (a böngésző hu-HU beállítása a 4 számjegyű összeget tagolás nélkül írná)
+  return String(Math.round(amount || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0') + ' Ft';
 }
 
 // FEE CALCULATION
+// <fee-rule>
+// Havidíj-szabály — UGYANEZ a kód fut az admin felületen, a szülői felületen és a számlázásnál.
+// Egy gyerek díja egy adott (tanévi) hónapra:
+//  - a beiratkozás előtti hónap, vagy a "nem jön"-nek jelölt hónap: 0 Ft
+//  - a beiratkozás hónapja: alkalmak száma × havidíj ÷ 4 (az első óra ingyenes), de legfeljebb a teljes díj
+//  - a beiratkozás hónapja / egy "nem jön" hónap utáni hónap: teljes díj
+//  - egyébként az ELŐZŐ, már lezárt hónap jelenléte dönt:
+//    0 alkalom = 0 Ft, 1 alkalom = fél díj, 2 vagy több alkalom = teljes díj
+//  - ha az előző hónap még tart, vagy a jelenlét nem ismert (null/undefined): teljes díj
+const FEE_MONTHS = ['09', '10', '11', '12', '01', '02', '03', '04', '05'];
+
+// Egy dátum-fejléc hónapját adja vissza ("09"), tetszőleges elválasztóval is
+// ("2026.09.02", "2026. 09. 02.", "2026-09-02").
+function monthOfDate(d) {
+  const m = String(d).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  return m ? m[2].padStart(2, '0') : '';
+}
+
+// Igaz, ha az adott tanévi hónap ("09".."05") utolsó napja már elmúlt.
+function isMonthOver(mm, now = new Date()) {
+  const m = parseInt(mm, 10);
+  const schoolYearStart = (now.getMonth() + 1) >= 9 ? now.getFullYear() : now.getFullYear() - 1;
+  const year = m >= 9 ? schoolYearStart : schoolYearStart + 1;
+  return now >= new Date(year, m, 1); // a következő hónap első napja
+}
+
+// "12, 02" vagy ["12","02"] -> ["12","02"]; csak érvényes tanévi hónapok maradnak.
+function parseMonthList(v) {
+  const arr = Array.isArray(v) ? v : String(v == null ? '' : v).split(/[^0-9]+/);
+  return arr.map(x => String(x).trim()).filter(Boolean)
+    .map(x => x.padStart(2, '0')).filter(x => FEE_MONTHS.includes(x));
+}
+
+function normMonth(v) {
+  const l = parseMonthList(v);
+  return l.length ? l[0] : '';
+}
+
+function hasFirstMonthSessions(child) {
+  const n = child.firstMonthSessions;
+  return !(n === null || n === undefined || n === '' || isNaN(Number(n)));
+}
+
+// 'before' = beiratkozás előtti hónap, 'skipped' = "nem jön", 'enroll' = beiratkozás hónapja, 'normal' = egyéb
+function getMonthStatus(child, month) {
+  const idx = FEE_MONTHS.indexOf(month);
+  if (idx < 0) return 'normal';
+  const enroll = normMonth(child.enrollMonth);
+  if (enroll && idx < FEE_MONTHS.indexOf(enroll)) return 'before';
+  if (parseMonthList(child.skipMonths).includes(month)) return 'skipped';
+  if (enroll && month === enroll) return 'enroll';
+  return 'normal';
+}
+
+function calcMonthFee(child, month, attData, now = new Date()) {
+  const fee = parseInt(child.monthlyFee) || 0;
+  const idx = FEE_MONTHS.indexOf(month);
+  if (idx < 0 || fee <= 0) return fee;
+  const status = getMonthStatus(child, month);
+  if (status === 'before' || status === 'skipped') return 0;
+  if (status === 'enroll') {
+    if (!hasFirstMonthSessions(child)) return fee;
+    return Math.min(fee, Math.round(fee * Number(child.firstMonthSessions) / 4));
+  }
+  if (idx === 0) return fee;
+  const prev = FEE_MONTHS[idx - 1];
+  if (getMonthStatus(child, prev) !== 'normal') return fee; // beiratkozás / "nem jön" utáni hónap
+  if (attData == null) return fee;                          // a jelenlét nem ismert: nem találgatunk
+  if (!isMonthOver(prev, now)) return fee;                  // az előző hónap még tart
+  const present = Object.keys(attData).filter(d => monthOfDate(d) === prev && attData[d]).length;
+  if (present === 0) return 0;
+  return present === 1 ? Math.round(fee / 2) : fee;
+}
+// </fee-rule>
+
+// Admin burkoló: a jelenlétet csak akkor használjuk, ha a gyerek csoportjának lapja sikeresen
+// betöltődött. Amíg nem tudjuk (vagy a betöltés hibás volt), a teljes díj látszik — soha nem
+// találgatunk 0 Ft-ot hiányzó adatból.
 function calcFee(child, month) {
-  const monthIdx = months.indexOf(month);
-  if (monthIdx <= 0) return child.monthlyFee || 0;
-  const prevMonth = months[monthIdx - 1];
-  const prevAttendance = child.attendance[prevMonth] || [];
-  const prevPresent = prevAttendance.filter(Boolean).length;
-  const fee = child.monthlyFee || 0;
-  if (prevPresent === 0) return 0;
-  if (prevPresent === 1) return Math.round(fee / 2);
-  return fee;
+  const ok = attendanceOkGroups[child.group];
+  return calcMonthFee(child, month, ok ? (attendanceData[child.id] || {}) : null);
+}
+
+// Az adott hónapban tényleg fizetnie kell-e (a díj > 0). "Nem jön", beiratkozás előtti
+// és 0 Ft-os hónapnál nem: ők nem szerepelnek a Nem fizetők listán, nem kapnak emlékeztetőt.
+function isDue(child, month) {
+  return calcFee(child, month) > 0;
+}
+
+// A díjakat érintő nézetek frissítése (jelenlét betöltése / módosítása, "nem jön" jelölés után)
+function refreshFeeViews(includeChildren) {
+  if (includeChildren) renderChildren();
+  renderPayment();
+  renderPaymentSummary();
+  renderStats();
+  renderDashUnpaid();
 }
 
 // GÁLA JEGYEK
