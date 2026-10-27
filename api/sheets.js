@@ -47,6 +47,81 @@ function buildAttendance(rows) {
   return { dates, attendance };
 }
 
+// <fee-rule>
+// Havidíj-szabály — UGYANEZ a kód fut az admin felületen, a szülői felületen és a számlázásnál.
+// Egy gyerek díja egy adott (tanévi) hónapra:
+//  - a beiratkozás előtti hónap, vagy a "nem jön"-nek jelölt hónap: 0 Ft
+//  - a beiratkozás hónapja: alkalmak száma × havidíj ÷ 4 (az első óra ingyenes), de legfeljebb a teljes díj
+//  - a beiratkozás hónapja / egy "nem jön" hónap utáni hónap: teljes díj
+//  - egyébként az ELŐZŐ, már lezárt hónap jelenléte dönt:
+//    0 alkalom = 0 Ft, 1 alkalom = fél díj, 2 vagy több alkalom = teljes díj
+//  - ha az előző hónap még tart, vagy a jelenlét nem ismert (null/undefined): teljes díj
+const FEE_MONTHS = ['09', '10', '11', '12', '01', '02', '03', '04', '05'];
+
+// Egy dátum-fejléc hónapját adja vissza ("09"), tetszőleges elválasztóval is
+// ("2026.09.02", "2026. 09. 02.", "2026-09-02").
+function monthOfDate(d) {
+  const m = String(d).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  return m ? m[2].padStart(2, '0') : '';
+}
+
+// Igaz, ha az adott tanévi hónap ("09".."05") utolsó napja már elmúlt.
+function isMonthOver(mm, now = new Date()) {
+  const m = parseInt(mm, 10);
+  const schoolYearStart = (now.getMonth() + 1) >= 9 ? now.getFullYear() : now.getFullYear() - 1;
+  const year = m >= 9 ? schoolYearStart : schoolYearStart + 1;
+  return now >= new Date(year, m, 1); // a következő hónap első napja
+}
+
+// "12, 02" vagy ["12","02"] -> ["12","02"]; csak érvényes tanévi hónapok maradnak.
+function parseMonthList(v) {
+  const arr = Array.isArray(v) ? v : String(v == null ? '' : v).split(/[^0-9]+/);
+  return arr.map(x => String(x).trim()).filter(Boolean)
+    .map(x => x.padStart(2, '0')).filter(x => FEE_MONTHS.includes(x));
+}
+
+function normMonth(v) {
+  const l = parseMonthList(v);
+  return l.length ? l[0] : '';
+}
+
+function hasFirstMonthSessions(child) {
+  const n = child.firstMonthSessions;
+  return !(n === null || n === undefined || n === '' || isNaN(Number(n)));
+}
+
+// 'before' = beiratkozás előtti hónap, 'skipped' = "nem jön", 'enroll' = beiratkozás hónapja, 'normal' = egyéb
+function getMonthStatus(child, month) {
+  const idx = FEE_MONTHS.indexOf(month);
+  if (idx < 0) return 'normal';
+  const enroll = normMonth(child.enrollMonth);
+  if (enroll && idx < FEE_MONTHS.indexOf(enroll)) return 'before';
+  if (parseMonthList(child.skipMonths).includes(month)) return 'skipped';
+  if (enroll && month === enroll) return 'enroll';
+  return 'normal';
+}
+
+function calcMonthFee(child, month, attData, now = new Date()) {
+  const fee = parseInt(child.monthlyFee) || 0;
+  const idx = FEE_MONTHS.indexOf(month);
+  if (idx < 0 || fee <= 0) return fee;
+  const status = getMonthStatus(child, month);
+  if (status === 'before' || status === 'skipped') return 0;
+  if (status === 'enroll') {
+    if (!hasFirstMonthSessions(child)) return fee;
+    return Math.min(fee, Math.round(fee * Number(child.firstMonthSessions) / 4));
+  }
+  if (idx === 0) return fee;
+  const prev = FEE_MONTHS[idx - 1];
+  if (getMonthStatus(child, prev) !== 'normal') return fee; // beiratkozás / "nem jön" utáni hónap
+  if (attData == null) return fee;                          // a jelenlét nem ismert: nem találgatunk
+  if (!isMonthOver(prev, now)) return fee;                  // az előző hónap még tart
+  const present = Object.keys(attData).filter(d => monthOfDate(d) === prev && attData[d]).length;
+  if (present === 0) return 0;
+  return present === 1 ? Math.round(fee / 2) : fee;
+}
+// </fee-rule>
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -69,7 +144,7 @@ export default async function handler(req, res) {
     if (action === 'getChildren') {
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:Q1000',
+        range: 'Gyerekek!A2:T1000',
       });
       const rows = response.data.values || [];
       const children = rows.filter(r => r[0]).map(r => ({
@@ -90,6 +165,9 @@ export default async function handler(req, res) {
         postCode: r[14] || '',
         city: r[15] || '',
         paymentMethod: r[16] || 'wire_transfer',
+        skipMonths: parseMonthList(r[17]),
+        enrollMonth: normMonth(r[18]),
+        firstMonthSessions: (r[19] === undefined || r[19] === '' || isNaN(Number(r[19]))) ? null : Number(r[19]),
       }));
       return res.status(200).json({ children });
     }
@@ -100,7 +178,7 @@ export default async function handler(req, res) {
       // Find if child exists (by ID)
       const existing = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:Q1000',
+        range: 'Gyerekek!A2:T1000',
       });
       const rows = existing.data.values || [];
       const rowIdx = rows.findIndex(r => r[2] === c.id);
@@ -123,13 +201,27 @@ export default async function handler(req, res) {
         }
       }
 
+      // Admin által állított mezők (havidíj, fizetési mód, "nem jön" hónapok, beiratkozás).
+      // Ha a kérés nem tartalmazza őket (pl. a szülői felületről érkező profilmentés),
+      // a Sheet-ben lévő értéket megtartjuk — így egy régi állapotról induló szülői mentés
+      // nem írhatja felül az admin időközbeni módosítását.
+      const ex = rowIdx !== -1 ? rows[rowIdx] : [];
+      const monthlyFee = c.monthlyFee !== undefined ? c.monthlyFee : (parseInt(ex[11]) || 0);
+      const paymentMethod = c.paymentMethod !== undefined ? (c.paymentMethod || 'wire_transfer') : (ex[16] || 'wire_transfer');
+      const skipMonths = c.skipMonths !== undefined ? parseMonthList(c.skipMonths).join(',') : (ex[17] || '');
+      const enrollMonth = c.enrollMonth !== undefined ? normMonth(c.enrollMonth) : (ex[18] || '');
+      const firstMonthSessions = c.firstMonthSessions !== undefined
+        ? ((c.firstMonthSessions === null || c.firstMonthSessions === '' || isNaN(Number(c.firstMonthSessions))) ? '' : Number(c.firstMonthSessions))
+        : (ex[19] === undefined ? '' : ex[19]);
+
       const rowData = [[
         c.name, c.pin, c.id, c.group, c.birthdate,
         c.parentName, c.parentPhone, c.parentEmail, c.billing || c.billingAddress || '',
-        c.childPhone, c.childEmail, c.monthlyFee,
+        c.childPhone, c.childEmail, monthlyFee,
         (c.styles || []).join(','),
         c.profileComplete ? 'Igen' : 'Nem',
-        c.postCode || '', c.city || '', c.paymentMethod || 'wire_transfer'
+        c.postCode || '', c.city || '', paymentMethod,
+        skipMonths, enrollMonth, firstMonthSessions
       ]];
 
       if (rowIdx === -1) {
@@ -144,7 +236,7 @@ export default async function handler(req, res) {
         // Update existing row
         await sheets.spreadsheets.values.update({
           spreadsheetId: SHEET_ID,
-          range: `Gyerekek!A${rowIdx + 2}:Q${rowIdx + 2}`,
+          range: `Gyerekek!A${rowIdx + 2}:T${rowIdx + 2}`,
           valueInputOption: 'RAW',
           resource: { values: rowData },
         });
@@ -159,14 +251,14 @@ export default async function handler(req, res) {
       // Delete from Gyerekek sheet
       const existing = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:Q1000',
+        range: 'Gyerekek!A2:T1000',
       });
       const rows = existing.data.values || [];
       const rowIdx = rows.findIndex(r => r[2] === id);
       if (rowIdx !== -1) {
         await sheets.spreadsheets.values.clear({
           spreadsheetId: SHEET_ID,
-          range: `Gyerekek!A${rowIdx + 2}:Q${rowIdx + 2}`,
+          range: `Gyerekek!A${rowIdx + 2}:T${rowIdx + 2}`,
         });
       }
 
@@ -320,7 +412,7 @@ export default async function handler(req, res) {
       // Gyerek + szülő adatainak kikeresése a Gyerekek lapról
       const childrenResp = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: 'Gyerekek!A2:Q1000',
+        range: 'Gyerekek!A2:T1000',
       });
       const childRow = (childrenResp.data.values || []).find(r => r[2] === childId);
       if (!childRow) {
@@ -339,6 +431,57 @@ export default async function handler(req, res) {
 
       if (!monthlyFee) {
         return res.status(200).json({ error: 'NINCS_HAVIDIJ_MEGADVA' });
+      }
+
+      // A havidíj-szabályhoz szükséges, admin által beállított adatok
+      const childFee = {
+        monthlyFee,
+        skipMonths: parseMonthList(childRow[17]),
+        enrollMonth: normMonth(childRow[18]),
+        firstMonthSessions: (childRow[19] === undefined || childRow[19] === '' || isNaN(Number(childRow[19]))) ? null : Number(childRow[19]),
+      };
+      const monthStatus = getMonthStatus(childFee, month);
+      // "Nem jön"-nek jelölt hónapra, vagy a beiratkozás előtti hónapra nem készül számla
+      if (monthStatus === 'before' || monthStatus === 'skipped') {
+        return res.status(200).json({ error: 'NINCS_FIZETENDO' });
+      }
+      // A beiratkozás hónapjának díja az alkalmak számától függ — enélkül nem tudunk számlázni
+      if (monthStatus === 'enroll' && !hasFirstMonthSessions(childFee)) {
+        return res.status(200).json({ error: 'HIANYZIK_ALKALOM_SZAM', childName });
+      }
+
+      // Fizetendő összeg: a havidíj-szabály szerint. Normál hónapnál a jelenlétet a gyerek
+      // csoportjának lapjáról olvassuk. Ha ez nem sikerül, inkább nem állítunk ki számlát,
+      // mint hogy rossz összeggel készüljön el egy hivatalos számla.
+      let attForCalc = null;
+      if (monthStatus === 'normal' && FEE_MONTHS.indexOf(month) > 0) {
+        const group = childRow[3] || '';
+        let attRows;
+        try {
+          const attResp = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${group}!A1:ZZ1000`,
+          });
+          attRows = attResp.data.values || [];
+        } catch (e) {
+          console.error('Jelenlét olvasási hiba számlázáskor:', group, e.message);
+          return res.status(200).json({ error: 'JELENLET_NEM_OLVASHATO', childName });
+        }
+        const { attendance } = buildAttendance(attRows);
+        // Azonos nevű gyerekek megkülönböztetése — ugyanaz a kulcs, mint az admin/tanári oldalon
+        const sameNameSameGroup = (childrenResp.data.values || [])
+          .filter(r => r[0] === childName && r[3] === group)
+          .sort((a, b) => (a[2] || '').localeCompare(b[2] || ''));
+        const attKey = sameNameSameGroup.length > 1
+          ? `${childName} (${sameNameSameGroup.findIndex(r => r[2] === childId) + 1})`
+          : childName;
+        attForCalc = attendance[attKey] || attendance[childName] || {};
+      }
+      const amountDue = calcMonthFee(childFee, month, attForCalc);
+
+      // 0 Ft fizetendő (pl. az előző hónapban nem járt) -> nincs mit számlázni
+      if (amountDue <= 0) {
+        return res.status(200).json({ error: 'NINCS_FIZETENDO' });
       }
 
       // A Billingo kötelezően kéri az irányítószámot és a várost külön mezőben —
@@ -419,7 +562,7 @@ export default async function handler(req, res) {
         paid: true,
         items: [{
           name: `Táncoktatás — ${childName} (${monthNames[month] || month})`,
-          unit_price: monthlyFee,
+          unit_price: amountDue,
           unit_price_type: 'gross',
           quantity: 1,
           unit: 'hó',
