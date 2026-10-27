@@ -371,14 +371,16 @@ function getAttendanceKey(child) {
   return `${child.name} (${idx + 1})`;
 }
 
-// Igaz, ha az adott tanévi hónap ("09".."05") utolsó napja már elmúlt. A "fél hónap"
-// szabály csak lezárt hónapra dönthető el: amíg a hónap tart, a jelenlét még változhat.
-function isMonthOver(mm, now = new Date()) {
-  const m = parseInt(mm, 10);
-  const schoolYearStart = (now.getMonth() + 1) >= 9 ? now.getFullYear() : now.getFullYear() - 1;
-  const year = m >= 9 ? schoolYearStart : schoolYearStart + 1;
-  return now >= new Date(year, m, 1); // a következő hónap első napja
-}
+// <fee-rule>
+// Havidíj-szabály — UGYANEZ a kód fut az admin felületen, a szülői felületen és a számlázásnál.
+// Egy gyerek díja egy adott (tanévi) hónapra:
+//  - a beiratkozás előtti hónap, vagy a "nem jön"-nek jelölt hónap: 0 Ft
+//  - a beiratkozás hónapja: alkalmak száma × havidíj ÷ 4 (az első óra ingyenes), de legfeljebb a teljes díj
+//  - a beiratkozás hónapja / egy "nem jön" hónap utáni hónap: teljes díj
+//  - egyébként az ELŐZŐ, már lezárt hónap jelenléte dönt:
+//    0 alkalom = 0 Ft, 1 alkalom = fél díj, 2 vagy több alkalom = teljes díj
+//  - ha az előző hónap még tart, vagy a jelenlét nem ismert (null/undefined): teljes díj
+const FEE_MONTHS = ['09', '10', '11', '12', '01', '02', '03', '04', '05'];
 
 // Egy dátum-fejléc hónapját adja vissza ("09"), tetszőleges elválasztóval is
 // ("2026.09.02", "2026. 09. 02.", "2026-09-02").
@@ -386,6 +388,64 @@ function monthOfDate(d) {
   const m = String(d).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
   return m ? m[2].padStart(2, '0') : '';
 }
+
+// Igaz, ha az adott tanévi hónap ("09".."05") utolsó napja már elmúlt.
+function isMonthOver(mm, now = new Date()) {
+  const m = parseInt(mm, 10);
+  const schoolYearStart = (now.getMonth() + 1) >= 9 ? now.getFullYear() : now.getFullYear() - 1;
+  const year = m >= 9 ? schoolYearStart : schoolYearStart + 1;
+  return now >= new Date(year, m, 1); // a következő hónap első napja
+}
+
+// "12, 02" vagy ["12","02"] -> ["12","02"]; csak érvényes tanévi hónapok maradnak.
+function parseMonthList(v) {
+  const arr = Array.isArray(v) ? v : String(v == null ? '' : v).split(/[^0-9]+/);
+  return arr.map(x => String(x).trim()).filter(Boolean)
+    .map(x => x.padStart(2, '0')).filter(x => FEE_MONTHS.includes(x));
+}
+
+function normMonth(v) {
+  const l = parseMonthList(v);
+  return l.length ? l[0] : '';
+}
+
+function hasFirstMonthSessions(child) {
+  const n = child.firstMonthSessions;
+  return !(n === null || n === undefined || n === '' || isNaN(Number(n)));
+}
+
+// 'before' = beiratkozás előtti hónap, 'skipped' = "nem jön", 'enroll' = beiratkozás hónapja, 'normal' = egyéb
+function getMonthStatus(child, month) {
+  const idx = FEE_MONTHS.indexOf(month);
+  if (idx < 0) return 'normal';
+  const enroll = normMonth(child.enrollMonth);
+  if (enroll && idx < FEE_MONTHS.indexOf(enroll)) return 'before';
+  if (parseMonthList(child.skipMonths).includes(month)) return 'skipped';
+  if (enroll && month === enroll) return 'enroll';
+  return 'normal';
+}
+
+function calcMonthFee(child, month, attData, now = new Date()) {
+  const fee = parseInt(child.monthlyFee) || 0;
+  const idx = FEE_MONTHS.indexOf(month);
+  if (idx < 0 || fee <= 0) return fee;
+  const status = getMonthStatus(child, month);
+  if (status === 'before' || status === 'skipped') return 0;
+  if (status === 'enroll') {
+    if (!hasFirstMonthSessions(child)) return fee;
+    return Math.min(fee, Math.round(fee * Number(child.firstMonthSessions) / 4));
+  }
+  if (idx === 0) return fee;
+  const prev = FEE_MONTHS[idx - 1];
+  if (getMonthStatus(child, prev) !== 'normal') return fee; // beiratkozás / "nem jön" utáni hónap
+  if (attData == null) return fee;                          // a jelenlét nem ismert: nem találgatunk
+  if (!isMonthOver(prev, now)) return fee;                  // az előző hónap még tart
+  const present = Object.keys(attData).filter(d => monthOfDate(d) === prev && attData[d]).length;
+  if (present === 0) return 0;
+  return present === 1 ? Math.round(fee / 2) : fee;
+}
+// </fee-rule>
+
 
 // Ugyanaz a logika, mint az admin felületen: ha két gyereknek azonos a neve,
 // sorszámmal különbözteti meg őket, hogy ne keveredjen össze a fizetési adatuk.
@@ -401,10 +461,13 @@ function getPaymentKey(child) {
 
 async function saveProfileToSheets(child) {
   try {
+    // A havidíj, fizetési mód, "nem jön" hónapok és a beiratkozás adatai csak az admin hatáskörébe
+    // tartoznak — ezeket nem küldjük vissza, így a háttér a Sheet-ben lévő értéket megtartja.
+    const { monthlyFee, paymentMethod, skipMonths, enrollMonth, firstMonthSessions, ...payload } = child;
     await fetch(`${API_URL}?action=saveChild`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(child)
+      body: JSON.stringify(payload)
     });
   } catch(e) {
     console.error('Sheets mentési hiba:', e);
@@ -602,52 +665,77 @@ async function renderPayment(child) {
     console.error('Fizetés betöltési hiba:', e);
   }
 
-  // Get fee from child data or from Sheets children list
   const fee = parseInt(child.monthlyFee) || 0;
-  const feeStr = fee > 0 ? fee.toLocaleString('hu-HU') + ' Ft' : 'Nincs megadva';
+  const feeText = v => String(Math.round(v || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0') + ' Ft'; // egységes tagolás: 6 000 Ft
 
-  // Show fee at top
-  const feeDisplay = document.getElementById('feeDisplay');
-  if (feeDisplay) feeDisplay.textContent = `Havi díj: ${feeStr}`;
-
-  // Get attendance to calculate half months
-  let attData = {};
+  // Jelenlét a díjszámításhoz. Ha nem sikerül lekérni, null marad: ilyenkor nem találgatunk,
+  // a teljes díj látszik (a szabály ismeretlen jelenlétnél is így számol).
+  let attData = null;
   try {
     const attResp = await fetch(`/api/sheets?action=getAttendance&group=${encodeURIComponent(child.group)}`);
     const attJson = await attResp.json();
-    attData = attJson.attendance?.[getAttendanceKey(child)] || attJson.attendance?.[child.name] || {};
-  } catch(e) {}
-
-  document.getElementById('paymentHistory').innerHTML = months.map((m, idx) => {
-    const status = payments[m] || 'unpaid';
-    const isPaid = status === 'paid';
-    
-    // Check previous month attendance
-    const prevMonth = months[idx - 1];
-    let halfMonth = false;
-    if (prevMonth && fee > 0) {
-      const prevDates = Object.keys(attData).filter(d => monthOfDate(d) === prevMonth);
-      const prevPresent = prevDates.filter(d => attData[d]).length;
-      if (prevPresent === 1 && isMonthOver(prevMonth)) halfMonth = true;
+    if (attJson.attendance) {
+      attData = attJson.attendance[getAttendanceKey(child)] || attJson.attendance[child.name] || {};
     }
+  } catch(e) {
+    console.error('Jelenlét betöltési hiba:', e);
+  }
+  const dueFor = m => calcMonthFee(child, m, attData);
 
-    return `
+  // Előzmények: a beiratkozás előtti hónapok nem jelennek meg
+  document.getElementById('paymentHistory').innerHTML = months
+    .filter(m => getMonthStatus(child, m) !== 'before')
+    .map(m => {
+      const st = getMonthStatus(child, m);
+      const due = dueFor(m);
+      const status = payments[m] || 'unpaid';
+      const isPaid = status === 'paid';
+      const noDue = st === 'skipped' || (fee > 0 && due === 0);
+
+      let tag = '';
+      if (st === 'skipped') tag = ' · nem jön';
+      else if (fee > 0 && due === 0) tag = ' · nincs fizetendő';
+      else if (fee > 0 && due !== fee) tag = st === 'enroll' ? ' · kezdő hónap' : ' · fél hónap';
+
+      const statusHtml = noDue
+        ? '<span class="payment-row-status" style="color:var(--text-soft);">—</span>'
+        : `<span class="payment-row-status ${status}">${isPaid ? '✓ Fizetve' : '✗ Nem fizetve'}</span>`;
+
+      return `
       <div class="payment-row">
-        <span class="payment-row-month">${monthNames[m]}${halfMonth ? ' <span style="font-size:11px;color:var(--orange);font-weight:500;">· fél hónap</span>' : ''}</span>
-        <span class="payment-row-status ${status}">${isPaid ? '✓ Fizetve' : '✗ Nem fizetve'}</span>
+        <span class="payment-row-month">${monthNames[m]}${tag ? ` <span style="font-size:11px;color:var(--orange);font-weight:500;">${tag}</span>` : ''}</span>
+        ${statusHtml}
       </div>`;
-  }).join('');
+    }).join('');
 
-  // Current month summary
+  // Aktuális hónap kártya: a ténylegesen fizetendő összeggel
   const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  const curKnown = months.includes(currentMonth);
+  const curDue = curKnown ? dueFor(currentMonth) : fee;
+  const curNoDue = curKnown && fee > 0 && curDue === 0; // "nem jön", beiratkozás előtt, vagy 0 Ft a szabály szerint
+
+  const feeDisplay = document.getElementById('feeDisplay');
+  if (feeDisplay) {
+    if (fee <= 0) feeDisplay.textContent = 'Havi díj: Nincs megadva';
+    else if (curNoDue) feeDisplay.textContent = 'Ebben a hónapban nincs fizetendő díj.';
+    else if (curDue !== fee) feeDisplay.textContent = `Fizetendő: ${feeText(curDue)} (havi díj: ${feeText(fee)})`;
+    else feeDisplay.textContent = `Havi díj: ${feeText(fee)}`;
+  }
+
   const currentStatus = payments[currentMonth] || 'unpaid';
   const isPaid = currentStatus === 'paid';
-  document.getElementById('currentPaymentBadge').textContent = isPaid ? '✓ Fizetve' : '✗ Nem fizetve';
-  document.getElementById('currentPaymentBadge').className = 'payment-badge ' + (isPaid ? 'paid' : 'unpaid');
+  const badge = document.getElementById('currentPaymentBadge');
+  if (curNoDue) {
+    badge.textContent = '— Nincs fizetendő';
+    badge.className = 'payment-badge';
+  } else {
+    badge.textContent = isPaid ? '✓ Fizetve' : '✗ Nem fizetve';
+    badge.className = 'payment-badge ' + (isPaid ? 'paid' : 'unpaid');
+  }
   document.getElementById('currentPaymentMonth').textContent = monthNames[currentMonth] || '';
-  document.getElementById('paymentNote').textContent = isPaid
-    ? 'A havi díj beérkezett, köszönjük!'
-    : 'A havi díj még nem érkezett be. Kérjük rendezd mielőbb!';
+  document.getElementById('paymentNote').textContent = curNoDue
+    ? 'Ebben a hónapban nincs fizetendő díj.'
+    : (isPaid ? 'A havi díj beérkezett, köszönjük!' : 'A havi díj még nem érkezett be. Kérjük rendezd mielőbb!');
 }
 
 function renderProfile(child) {
