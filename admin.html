@@ -1018,19 +1018,34 @@ function renderStats() {
 
 // Jelenlét-arány a Lógósok listához, a csoport jelenléti lapjának adataiból. A régi változat egy
 // soha fel nem töltött listából (c.attendance) olvasott, ezért a lista mindig üres volt.
-// A hiányzást a gyereknél onnantól számoljuk, ahol beiratkozott (a beiratkozás hónapja is beleszámít).
-// A "nem jön"-nek jelölt hónap is hiányzásnak számít, mindegy, miért. Csak a beiratkozás ELŐTTI alkalmak maradnak ki.
+// Szabály: a hiányzást a gyereknél onnantól számoljuk, ahol beiratkozott; a beiratkozás ELŐTTI alkalmak
+// nem számítanak. A "nem jön"-nek jelölt hónap is hiányzásnak számít, mindegy, miért.
+// A beiratkozás hónapjában annyi alkalmon kell ott lennie, amennyi a fizetendő alkalmak + 1 ingyenes;
+// amíg a hónap tart, legfeljebb annyi alkalmat várunk el, ahány alkalom eddig volt a csoportnál.
+// Ha az "első hónapban fizetendő alkalmak" nincs megadva, a beiratkozás hónapja nem számít bele.
 // Ha a csoport jelenléte nem töltődött be, null-t ad: ilyenkor senkit nem jelölünk meg.
 function attendanceStats(child) {
   if (!attendanceOkGroups[child.group]) return null;
   const dates = attendanceDates[child.group] || [];
   const att = attendanceData[child.id] || {};
+  const enroll = normMonth(child.enrollMonth);
   let total = 0, present = 0;
+  let enrollHeld = 0, enrollPresent = 0; // a beiratkozás hónapjában eddig tartott / ott töltött alkalmak
   dates.forEach(d => {
-    if (getMonthStatus(child, monthOfDate(d)) === 'before') return;
+    const m = monthOfDate(d);
+    if (getMonthStatus(child, m) === 'before') return;
+    if (enroll && m === enroll) {
+      enrollHeld++;
+      if (att[d]) enrollPresent++;
+      return;
+    }
     total++;
     if (att[d]) present++;
   });
+  if (enroll && hasFirstMonthSessions(child)) {
+    total += Math.min(Number(child.firstMonthSessions) + 1, enrollHeld);
+    present += enrollPresent;
+  }
   return { present, total, rate: total ? present / total : null };
 }
 
