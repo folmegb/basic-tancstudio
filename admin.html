@@ -265,6 +265,7 @@ tr:hover td { background: var(--ivory); }
         <div class="section-title">Áttekintés</div>
         <button class="btn btn-outline" onclick="refreshFromSheets()">🔄 Frissítés</button>
       </div>
+      <div class="id-warnings"></div>
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-card-label">Összes tanuló</div>
@@ -315,6 +316,7 @@ tr:hover td { background: var(--ivory); }
           <button class="btn btn-green" onclick="openAddModal()">+ Új gyerek</button>
         </div>
       </div>
+      <div class="id-warnings"></div>
       <div id="childrenByGroup"></div>
     </div>
 
@@ -979,7 +981,10 @@ function renderAll() {
   // Populate payment month filter
   const pmf = document.getElementById('paymentMonthFilter');
   if (pmf) {
+    // Alapból az aktuális hónap; ha te átállítod, a frissítések (mentés, újratöltés) alatt megmarad
+    const keep = pmf.value && months.includes(pmf.value) ? pmf.value : getCurrentPaymentMonth();
     pmf.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
+    pmf.value = keep;
   }
   renderChildren();
   renderStilusok();
@@ -1078,7 +1083,39 @@ function renderDashUnpaid() {
 }
 
 // CHILDREN
+// A QR-kód és a szülői belépés az azonosítóra (ID) és a PIN-re épül. Ha két gyereknek azonos, a rendszer
+// nem tudja megkülönböztetni őket. Az új ütközést a rendszer megakadályozza, de a korábbról megmaradtakat
+// (pl. a régi ID-ütközésből) ez a figyelmeztetés jelzi.
+function findIdentifierProblems() {
+  const dups = key => {
+    const m = {};
+    children.forEach(c => { const v = c[key]; if (v == null || String(v).trim() === '') return; (m[v] = m[v] || []).push(c.name); });
+    return Object.entries(m).filter(([, names]) => names.length > 1);
+  };
+  const missing = key => children.filter(c => c[key] == null || String(c[key]).trim() === '').map(c => c.name);
+  return { dupIds: dups('id'), dupPins: dups('pin'), noId: missing('id'), noPin: missing('pin') };
+}
+
+function renderIdentifierWarnings() {
+  const p = findIdentifierProblems();
+  const e = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const lines = [];
+  p.dupIds.forEach(([id, names]) => lines.push(`<li><b>Azonos QR-azonosító</b> (${e(id)}): ${names.map(e).join(', ')}. A beolvasó nem tudja megkülönböztetni őket, ezért a tanári oldalon a Névsorból kell őket bejelentkeztetni.</li>`));
+  p.dupPins.forEach(([pin, names]) => lines.push(`<li><b>Azonos PIN</b> (${e(pin)}): ${names.map(e).join(', ')}. A szülői belépés ugyanazzal a PIN-nel a másik gyereket is megnyithatja.</li>`));
+  if (p.noId.length) lines.push(`<li><b>Hiányzó azonosító:</b> ${p.noId.map(e).join(', ')}. QR-kóddal nem tudnak bejelentkezni.</li>`);
+  if (p.noPin.length) lines.push(`<li><b>Hiányzó PIN:</b> ${p.noPin.map(e).join(', ')}. A szülői felületre nem tudnak belépni.</li>`);
+  const html = lines.length
+    ? `<div style="background:#FFF4E5;border:1px solid var(--orange);color:#8A4B0F;padding:14px 18px;margin-bottom:1.25rem;font-size:13px;line-height:1.6;">
+         <div style="font-weight:600;margin-bottom:6px;">⚠ Azonosító-gond a gyerekek között</div>
+         <ul style="margin:0 0 8px 18px;padding:0;">${lines.join('')}</ul>
+         <div style="font-size:12px;">Javítás: írd át az egyik gyerek azonosítóját (Google Sheet, Gyerekek lap, C oszlop) vagy PIN-jét (B oszlop). Az eddigi jelenlét és fizetés nem érintett. Új azonosító után a QR-kódot újra ki kell nyomtatni, új PIN-t pedig el kell mondani a szülőnek.</div>
+       </div>`
+    : '';
+  document.querySelectorAll('.id-warnings').forEach(el => { el.innerHTML = html; });
+}
+
 function renderChildren() {
+  renderIdentifierWarnings();
   const el = document.getElementById('childrenByGroup');
   const searchTerm = document.getElementById('childSearch')?.value.toLowerCase() || '';
   el.innerHTML = groups.map(g => {
