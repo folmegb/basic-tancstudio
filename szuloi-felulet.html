@@ -607,17 +607,33 @@ async function renderAttendance(child) {
       return;
     }
 
-    // Group dates by month
+    // Group dates by month — csak a beiratkozástól látszó alkalmak
+    // - beiratkozás előtti hónapok: nem látszanak
+    // - beiratkozás hónapja: ha az admin megadta a fizetendő alkalmak számát, a "fizetendő + 1 ingyenes"
+    //   alkalom látszik (a hónap utolsó ennyi alkalma); ha nincs megadva, a hónap összes alkalma
+    // - "nem jön" hónapok és a többi hónap: látszik
     const byMonth = {};
     data.dates.forEach(date => {
       if (!date) return;
       const parts = date.split('.');
       const month = parts[1] ? parts[1].trim().padStart(2, '0') : '??';
+      if (getMonthStatus(child, month) === 'before') return;
       if (!byMonth[month]) byMonth[month] = [];
       byMonth[month].push(date);
     });
+    Object.keys(byMonth).forEach(month => {
+      if (getMonthStatus(child, month) === 'enroll' && hasFirstMonthSessions(child)) {
+        const n = Number(child.firstMonthSessions) + 1;
+        if (byMonth[month].length > n) byMonth[month] = byMonth[month].slice(-n);
+      }
+    });
 
-    const childAtt = data.attendance[child.name] || {};
+    if (Object.keys(byMonth).length === 0) {
+      list.innerHTML = '<div style="padding:1rem;color:var(--text-soft);font-style:italic;">Még nincs rögzített jelenlét.</div>';
+      return;
+    }
+
+    const childAtt = (data.attendance || {})[getAttendanceKey(child)] || {};
 
     list.innerHTML = Object.entries(byMonth).map(([month, dates]) => {
       const present = dates.filter(d => childAtt[d]).length;
